@@ -3,7 +3,7 @@ import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
 import DashboardPage from './pages/DashboardPage'
 import ProfilePage from './pages/ProfilePage'
-import BottomNav from './components/BottomNav'
+import BottomNav from './pages/components/BottomNav'
 
 // Pages that should show the BottomNav
 const NAV_ROUTES = ['/dashboard', '/profile']
