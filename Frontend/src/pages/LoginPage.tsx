@@ -78,11 +78,11 @@ export default function LoginPage() {
         {/* Brand */}
         <div className="mb-8 text-center">
           <span
-            className="inline-block text-2xl font-bold tracking-tight text-white"
-            style={{ letterSpacing: "-0.03em" }}
-          >
-            app<span className="text-[#6C63FF]">.</span>
-          </span>
+  className="inline-block text-2xl font-bold tracking-tight text-white"
+  style={{ letterSpacing: "-0.03em" }}
+>
+  Campus<span className="text-[#6C63FF]">OS</span>
+</span>
           <p className="mt-1 text-sm text-[#64748B]">Welcome back</p>
         </div>
 
