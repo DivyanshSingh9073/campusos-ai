@@ -1,4 +1,5 @@
 import express from 'express';
+import users from "./user.js"
 import cors from 'cors';
 import helmet from 'helmet';
 import { config } from './config.js';
@@ -6,6 +7,10 @@ import { authRouter } from './routes/auth.routes.js';
 import { notesRouter } from './routes/notes.routes.js';
 import { tasksRouter } from './routes/tasks.routes.js';
 const app = express();
+app.get("/api/user",(req,res)=>{
+    res.send("Server is ready")
+
+})
 app.use(helmet());
 app.use(cors({ origin: config.CORS_ORIGIN, credentials: true }));
 app.use(express.json({ limit: '1mb' }));

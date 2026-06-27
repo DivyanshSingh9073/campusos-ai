@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { api } from '../lib/api'
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -138,15 +140,30 @@ export default function SignupPage() {
     return Object.keys(next).length === 0
   }
 
-  const handleSubmit = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const [formError, setFormError] = useState<string | null>(null)
+
+  const handleSubmit = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault()
-    if (validate()) navigate('/dashboard')
+    setFormError(null)
+    if (!validate()) return
+
+    try {
+      await api.auth.register({
+        name: form.name,
+        email: form.email,
+        password: form.password,
+      })
+      navigate('/', { replace: true })
+    } catch (err: any) {
+      setFormError(String(err?.message ?? err))
+    }
   }
+
 
   const strength = getPasswordStrength(form.password)
 
   return (
-    <div className="relative min-h-screen bg-[#0A0A0F] flex items-center justify-center px-4 py-12 overflow-hidden">
+<div className="relative min-h-screen bg-[#0A0A0F] flex items-center justify-center px-4 py-12 pb-[env(safe-area-inset-bottom)] overflow-hidden">
 
       {/* Ambient orb */}
       <div

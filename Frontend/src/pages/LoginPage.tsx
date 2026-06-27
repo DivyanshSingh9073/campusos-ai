@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { api, clearToken, setToken } from "../lib/api";
 
 const GoogleIcon = () => (
   <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden="true">
@@ -36,10 +38,13 @@ const EyeIcon = ({ open }: { open: boolean }) =>
   );
 
 export default function LoginPage() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const validate = () => {
     const next: typeof errors = {};
@@ -51,16 +56,26 @@ export default function LoginPage() {
     return Object.keys(next).length === 0;
   };
 
-  const handleLogin = (e: React.MouseEvent) => {
+  const handleLogin = async (e: React.MouseEvent) => {
     e.preventDefault();
-    if (validate()) {
-      // No backend — placeholder
-      alert("Login successful (demo)");
+    setFormError(null);
+    if (!validate()) return;
+
+    setLoading(true);
+    try {
+      clearToken();
+      const result = await api.auth.login({ email, password });
+      setToken(result.token);
+      navigate('/dashboard', { replace: true });
+    } catch (err: any) {
+      setFormError(String(err?.message ?? err));
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="relative min-h-screen bg-[#0A0A0F] flex items-center justify-center px-4 py-12 overflow-hidden">
+<div className="relative min-h-screen bg-[#0A0A0F] flex items-center justify-center px-4 py-12 pb-[env(safe-area-inset-bottom)] overflow-hidden">
 
       {/* Ambient orb — the signature element */}
       <div
@@ -179,13 +194,20 @@ export default function LoginPage() {
             </a>
           </div>
 
+          {formError && (
+            <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2">
+              <p className="text-xs text-red-300">{formError}</p>
+            </div>
+          )}
+
           {/* Login button */}
           <button
             type="submit"
             onClick={handleLogin}
-            className="w-full rounded-xl bg-[#6C63FF] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#6C63FF]/20 transition-all hover:bg-[#7C6FFF] hover:shadow-[#6C63FF]/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C63FF] active:scale-[0.98]"
+            disabled={loading}
+            className="w-full rounded-xl bg-[#6C63FF] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#6C63FF]/20 transition-all hover:bg-[#7C6FFF] hover:shadow-[#6C63FF]/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C63FF] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Log in
+            {loading ? 'Logging in…' : 'Log in'}
           </button>
         </div>
 
@@ -203,3 +225,4 @@ export default function LoginPage() {
     </div>
   );
 }
+
