@@ -1,4 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { api, clearToken } from "../lib/api";
+import { useNavigate } from "react-router-dom";
+
+
 import {
   HiSparkles,
   HiOutlineDocumentText,
@@ -178,17 +182,62 @@ function TaskRow({ task, onToggle }: { task: Task; onToggle: (id: number) => voi
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>(TASKS);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const toggleTask = (id: number) =>
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t))
-    );
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await api.tasks.list();
+        const mapped: Task[] = res.tasks.map((t: any) => ({
+          id: Number(t.id),
+          title: String(t.title),
+          subject: '',
+          due: String(t.dueDate ?? t.due_date ?? ''),
+          done: Boolean(t.completed),
+          priority: 'medium' as const,
+        }));
+
+        if (mounted) setTasks(mapped);
+      } catch (e: any) {
+        if (!mounted) return;
+        setError(String(e?.message ?? e));
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const toggleTask = async (id: number) => {
+    const current = tasks.find((t) => t.id === id);
+    const nextCompleted = !current?.done;
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: nextCompleted } : t)));
+
+    try {
+      await api.tasks.update(id, { completed: nextCompleted });
+    } catch (e: any) {
+      // revert on failure
+      setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: !nextCompleted } : t)));
+      if (String(e?.message ?? '').toLowerCase().includes('token') || String(e?.message ?? '').includes('Authorization')) {
+        clearToken();
+        navigate('/', { replace: true });
+      }
+    }
+  };
 
   const pendingCount = tasks.filter((t) => !t.done).length;
 
   return (
-    <div className="relative min-h-screen bg-[#0A0A0F] px-4 pt-10 pb-28 overflow-x-hidden">
+
+<div className="relative min-h-screen bg-[#0A0A0F] px-4 pt-10 pb-[calc(7rem+env(safe-area-inset-bottom))] overflow-x-hidden">
 
       {/* Ambient orb */}
       <div

@@ -1,4 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { api, clearToken } from "../lib/api";
+import { useNavigate } from "react-router-dom";
+
 import {
   HiOutlineMail,
   HiOutlineAcademicCap,
@@ -118,9 +121,15 @@ function LogoutModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm:
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
+  const navigate = useNavigate();
   const [showLogout, setShowLogout] = useState(false);
   const [loggedOut, setLoggedOut] = useState(false);
   const [editToast, setEditToast] = useState(false);
+
+  const [profile, setProfile] = useState<{ id: number; name: string; email: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
 
   const handleEdit = () => {
     setEditToast(true);
@@ -129,19 +138,54 @@ export default function ProfilePage() {
 
   const handleLogout = () => {
     setShowLogout(false);
+    clearToken();
     setLoggedOut(true);
   };
 
-  // ── Logged out screen ──
-  if (loggedOut) {
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await api.auth.profile();
+        if (!mounted) return;
+        setProfile(res.user);
+      } catch (e: any) {
+        if (!mounted) return;
+        setError(String(e?.message ?? e));
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+
+  if (loading) {
     return (
-      <div className="min-h-screen bg-[#0A0A0F] flex flex-col items-center justify-center px-4">
+      <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center">
+        <p className="text-sm text-[#64748B]">Loading profile…</p>
+      </div>
+    );
+  }
+
+  // ── Logged out screen ──
+  if (loggedOut || error) {
+
+    return (
+<div className="min-h-screen bg-[#0A0A0F] flex flex-col items-center justify-center px-4 pb-[env(safe-area-inset-bottom)]">
         <div className="text-center">
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-white/5">
             <HiOutlineLogout className="w-7 h-7 text-[#64748B]" />
           </div>
           <p className="text-white font-semibold text-lg mb-1">You're logged out</p>
-          <p className="text-sm text-[#4B5563]">See you next time, {USER.name.split(" ")[0]}.</p>
+          <p className="text-sm text-[#4B5563]">
+            {error ? 'Session expired. Please sign in again.' : `See you next time, ${USER.name.split(' ')[0]}.`}
+          </p>
+
           <button
             type="button"
             onClick={() => setLoggedOut(false)}
@@ -154,8 +198,13 @@ export default function ProfilePage() {
     );
   }
 
+  const effective = profile
+    ? { ...USER, name: profile.name, email: profile.email }
+    : USER
+
   return (
-    <div className="relative min-h-screen bg-[#0A0A0F] px-4 py-10 pb-28 overflow-x-hidden">
+<div className="relative min-h-screen bg-[#0A0A0F] px-4 py-10 pb-[calc(7rem+env(safe-area-inset-bottom))] overflow-x-hidden">
+
 
       {/* Ambient orb */}
       <div
