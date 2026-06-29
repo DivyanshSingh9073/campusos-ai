@@ -1,4 +1,6 @@
-# TODO (CampusOS AI — Backend/Frontend integration)
+# TODO
+
+## Backend / Frontend Integration
 
 - [ ] Create `Backend/app.js` exporting the Express `app` instance.
 - [ ] Update `Backend/src/index.ts` to import/use `Backend/app.js` so runtime stays consistent.
@@ -10,3 +12,9 @@
 - [ ] Update `Frontend/src/pages/ProfilePage.tsx` to load `GET /api/auth/profile` and support logout.
 - [ ] Run `npm run dev` for Backend and Frontend; manually verify signup/login/dashboard/profile connectivity.
 
+## Backend Configuration
+
+- [ ] Inspect backend configuration and DB connection code.
+- [ ] Update `Backend/src/db/index.ts` to fail fast with a clear error if `DATABASE_URL` is missing.
+- [ ] Build backend to confirm TypeScript compiles.
+- [ ] Run backend (optional) to confirm startup behavior.
