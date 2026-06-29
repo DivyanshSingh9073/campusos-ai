@@ -1,55 +1,80 @@
+import { useMemo } from 'react'
+
+export type ApiError = { error?: string; message?: string }
+
 // ─── Token storage ────────────────────────────────────────────────────────────
 
-const TOKEN_KEY = 'campusos_token'
+const TOKEN_KEY = 'campusos_ai_token'
 
 export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY)
+  return window.localStorage.getItem(TOKEN_KEY)
 }
 
 export function setToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token)
+  window.localStorage.setItem(TOKEN_KEY, token)
 }
 
 export function clearToken(): void {
-  localStorage.removeItem(TOKEN_KEY)
+  window.localStorage.removeItem(TOKEN_KEY)
 }
 
-// ─── Base fetch ───────────────────────────────────────────────────────────────
+// ─── Base URL / Fetch ────────────────────────────────────────────────────────
+// Vite dev server can proxy /api -> backend, so we call relative /api paths.
+// If you use VITE_API_BASE_URL you can set it; otherwise rely on /api proxy.
 
-const BASE = '/api'   // Vite proxy rewrites /api → http://localhost:3001/api
+const BASE = '/api'
+
+function getApiBaseUrl(): string {
+  const v = (import.meta as any)?.env?.VITE_API_BASE_URL as string | undefined
+  const trimmed = typeof v === 'string' ? v.trim() : ''
+  return trimmed || BASE
+}
+
+function makeHeaders(): HeadersInit {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+
+  const token = getToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+
+  return headers
+}
 
 async function request<T>(
-  method: string,
   path: string,
-  body?: unknown,
-  auth = true
+  opts?: { method?: string; body?: unknown; auth?: boolean }
 ): Promise<T> {
+  const method = opts?.method ?? 'GET'
+  const auth = opts?.auth ?? true
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   }
 
   if (auth) {
     const token = getToken()
-    if (token) headers['Authorization'] = `Bearer ${token}`
+    if (token) headers.Authorization = `Bearer ${token}`
   }
 
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(`${getApiBaseUrl()}${path.startsWith('/') ? path : `/${path}`}`, {
     method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    headers: {
+      ...headers,
+    },
+    body: opts?.body === undefined ? undefined : JSON.stringify(opts.body),
+    credentials: 'include',
   })
 
-  // Parse JSON even on error responses so we can surface the error message
-  let data: any
-  try {
-    data = await res.json()
-  } catch {
-    data = {}
-  }
+  const ct = res.headers.get('content-type') ?? ''
+  const data: any = ct.includes('application/json')
+    ? await res.json().catch(() => ({}))
+    : await res.text().catch(() => ({}))
 
   if (!res.ok) {
-    // Throw the backend's error message if present, else HTTP status text
-    throw new Error(data?.error ?? `${res.status} ${res.statusText}`)
+    const payload = data as ApiError
+    const message = payload?.error || payload?.message || `Request failed: ${res.status}`
+    throw new Error(message)
   }
 
   return data as T
@@ -58,94 +83,83 @@ async function request<T>(
 // ─── API surface ──────────────────────────────────────────────────────────────
 
 export const api = {
-
   auth: {
-    /** POST /api/auth/register — returns { id } */
-    register(body: { name: string; email: string; password: string }) {
-      return request<{ id: number }>('POST', '/auth/register', body, false)
-    },
-
-    /** POST /api/auth/login — returns { token, user } */
     login(body: { email: string; password: string }) {
       return request<{ token: string; user: { id: number; name: string; email: string } }>(
-        'POST',
         '/auth/login',
-        body,
-        false
+        { method: 'POST', body, auth: false }
       )
     },
 
-    /** GET /api/auth/profile — returns { user } (requires auth) */
+    register(body: { name: string; email: string; password: string }) {
+      return request<{ id: number }>('/auth/register', { method: 'POST', body, auth: false })
+    },
+
     profile() {
-      return request<{ user: { id: number; name: string; email: string } }>(
-        'GET',
-        '/auth/profile'
-      )
+      return request<{ user: { id: number; name: string; email: string } }>('/auth/profile', {
+        method: 'GET',
+        auth: true,
+      })
     },
   },
 
   tasks: {
-    /** GET /api/tasks — returns { tasks } */
     list() {
       return request<{ tasks: Array<{ id: number; title: string; dueDate: string | null; completed: boolean }> }>(
-        'GET',
-        '/tasks'
+        '/tasks',
+        { method: 'GET' }
       )
     },
 
-    /** POST /api/tasks — returns { task } */
     create(body: { title: string; due_date?: string; completed?: boolean }) {
       return request<{ task: { id: number; title: string; dueDate: string | null; completed: boolean } }>(
-        'POST',
         '/tasks',
-        body
+        { method: 'POST', body }
       )
     },
 
-    /** PUT /api/tasks/:id — returns { task } */
-    update(id: number, body: { title?: string; due_date?: string; completed?: boolean }) {
+    update(id: number, body: { title?: string; due_date?: string | null; completed?: boolean }) {
       return request<{ task: { id: number; title: string; dueDate: string | null; completed: boolean } }>(
-        'PUT',
         `/tasks/${id}`,
-        body
+        { method: 'PUT', body }
       )
     },
 
-    /** DELETE /api/tasks/:id — returns 204 No Content */
     delete(id: number) {
-      return request<void>('DELETE', `/tasks/${id}`)
+      return request<void>(`/tasks/${id}`, { method: 'DELETE' })
     },
   },
 
   notes: {
-    /** GET /api/notes — returns { notes } */
     list() {
       return request<{ notes: Array<{ id: number; title: string; subject: string; fileUrl: string }> }>(
-        'GET',
-        '/notes'
+        '/notes',
+        { method: 'GET' }
       )
     },
 
-    /** GET /api/notes/:id — returns { note } */
     get(id: number) {
       return request<{ note: { id: number; title: string; subject: string; fileUrl: string } }>(
-        'GET',
-        `/notes/${id}`
+        `/notes/${id}`,
+        { method: 'GET' }
       )
     },
 
-    /** POST /api/notes/upload — returns { note } */
     upload(body: { title: string; subject: string; file_url: string }) {
       return request<{ note: { id: number; title: string; subject: string; fileUrl: string } }>(
-        'POST',
         '/notes/upload',
-        body
+        { method: 'POST', body }
       )
     },
 
-    /** DELETE /api/notes/:id — returns 204 No Content */
     delete(id: number) {
-      return request<void>('DELETE', `/notes/${id}`)
+      return request<void>(`/notes/${id}`, { method: 'DELETE' })
     },
   },
 }
+
+// Some parts of the app may import this hook-like helper.
+export function useApi() {
+  return useMemo(() => api, [])
+}
+
