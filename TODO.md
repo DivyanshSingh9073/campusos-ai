@@ -1,4 +1,10 @@
+<<<<<<< HEAD
 # TODO - Registration / DB verification
+=======
+# TODO
+
+## Backend / Frontend Integration
+>>>>>>> 0243aec2cdf4248c2475a5dc4dcc6d09d9337bc5
 
 ## Step 1: Understand current backend
 - [x] Inspect backend startup + routing
@@ -16,3 +22,9 @@
   - [ ] Response body
   - [ ] Backend terminal output
 
+## Backend Configuration
+
+- [ ] Inspect backend configuration and DB connection code.
+- [ ] Update `Backend/src/db/index.ts` to fail fast with a clear error if `DATABASE_URL` is missing.
+- [ ] Build backend to confirm TypeScript compiles.
+- [ ] Run backend (optional) to confirm startup behavior.
