@@ -217,7 +217,7 @@ export default function SignupPage() {
               id="name"
               type="text"
               autoComplete="name"
-              placeholder="Divyansh Singh"
+              placeholder="Your Name"
               value={form.name}
               onChange={setField('name')}
               className={inputCls(!!errors.name)}

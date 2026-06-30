@@ -21,6 +21,9 @@ interface UserProfile {
   id: number;
   name: string;
   email: string;
+  branch?: string;
+  year?: string;
+  stats?: { tasksCompleted: number; notesCreated: number; aiChats: number };
 }
 
 interface EffectiveUser {
@@ -50,7 +53,6 @@ const DEFAULT_USER: EffectiveUser = {
   notesCreated: 0,
   aiChats: 0,
 };
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getInitials(name: string) {
@@ -151,7 +153,6 @@ function LogoutModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm:
 export default function ProfilePage() {
   const navigate = useNavigate();
   const [showLogout, setShowLogout] = useState(false);
-  const [loggedOut, setLoggedOut] = useState(false);
   const [editToast, setEditToast] = useState(false);
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -163,12 +164,11 @@ export default function ProfilePage() {
     setEditToast(true);
     setTimeout(() => setEditToast(false), 2500);
   };
-  
+
   const handleLogout = () => {
-  setShowLogout(false);
-  clearToken();
-  navigate("/", { replace: true });
-};
+    setShowLogout(false);
+    navigate("/", { replace: true });
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -180,7 +180,6 @@ export default function ProfilePage() {
         if (!mounted) return;
         setProfile(res.user);
       } catch (e: unknown) {
-        if (!mounted) return;
 
         const message =
           e instanceof Error
@@ -215,26 +214,18 @@ export default function ProfilePage() {
   }
 
   // ── Logged out screen ──
-  if (loggedOut || error) {
-
+  if (error) {
     return (
-<div className="min-h-screen bg-[#0A0A0F] flex flex-col items-center justify-center px-4 pb-[env(safe-area-inset-bottom)]">
+      <div className="min-h-screen bg-[#0A0A0F] flex flex-col items-center justify-center px-4 pb-[env(safe-area-inset-bottom)]">
         <div className="text-center">
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-white/5">
             <HiOutlineLogout className="w-7 h-7 text-[#64748B]" />
           </div>
-          <p className="text-white font-semibold text-lg mb-1">You're logged out</p>
+          <p className="text-white font-semibold text-lg mb-1">Something went wrong</p>
           <p className="text-sm text-[#4B5563]">
-            {error ? 'Session expired. Please sign in again.' : 'See you next time.'}
+            {isAuthError(error) ? 'Your session expired. Please sign in again.' : 'Could not load your profile.'}
           </p>
 
-          <button
-            type="button"
-            onClick={() => setLoggedOut(false)}
-            className="mt-6 rounded-xl bg-[#6C63FF] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#7C6FFF] transition-colors"
-          >
-            Back to Profile
-          </button>
         </div>
       </div>
     );
@@ -245,12 +236,14 @@ export default function ProfilePage() {
   // avatar, and the stats are not yet returned by the backend, so they
   // always fall back to DEFAULT_USER until the API supports them.
   const effectiveUser: EffectiveUser = {
-    ...DEFAULT_USER,
-    ...(profile ?? {}),
+    name: profile?.name ?? DEFAULT_USER.name,
+    email: profile?.email ?? DEFAULT_USER.email,
+    branch: profile?.branch ?? DEFAULT_USER.branch,
+    year: profile?.year ?? DEFAULT_USER.year,
   };
 
   return (
-<div className="relative min-h-screen bg-[#0A0A0F] px-4 py-10 pb-[calc(7rem+env(safe-area-inset-bottom))] overflow-x-hidden">
+    <div className="relative min-h-screen bg-[#0A0A0F] px-4 py-10 pb-[calc(7rem+env(safe-area-inset-bottom))] overflow-x-hidden">
 
 
       {/* Ambient orb */}
@@ -297,7 +290,7 @@ export default function ProfilePage() {
             <span className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full bg-green-500 border-2 border-[#111118]" />
           </div>
 
-          {/* Name */}
+          {/* Name & Join Date */}
           <h2 className="text-xl font-bold text-white mb-0.5" style={{ letterSpacing: "-0.02em" }}>
             {effectiveUser.name}
           </h2>
@@ -306,16 +299,16 @@ export default function ProfilePage() {
           {/* Info pills */}
           <div className="space-y-2 text-left mb-6">
             {[
-              { Icon: HiOutlineMail,       value: effectiveUser.email                    },
-              { Icon: HiOutlineAcademicCap, value: effectiveUser.branch                  },
-              { Icon: HiOutlineCalendar,   value: effectiveUser.year                     },
+              { Icon: HiOutlineMail, value: effectiveUser.email },
+              { Icon: HiOutlineAcademicCap, value: effectiveUser.branch },
+              { Icon: HiOutlineCalendar, value: effectiveUser.year },
             ].map(({ Icon, value }) => (
               <div
-                key={value}
+                key={value || Math.random()}
                 className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] px-4 py-2.5"
               >
                 <Icon className="w-4 h-4 text-[#6C63FF] shrink-0" />
-                <span className="text-sm text-[#C4CDD8] truncate">{value}</span>
+                <span className="text-sm text-[#C4CDD8] truncate">{value || "Not set"}</span>
               </div>
             ))}
           </div>
@@ -345,18 +338,16 @@ export default function ProfilePage() {
         <div className="rounded-2xl border border-white/[0.07] bg-[#111118] px-6 py-5 shadow-xl">
           <p className="text-xs font-semibold text-[#4B5563] uppercase tracking-widest mb-4">Activity</p>
           <div className="flex items-center justify-around divide-x divide-white/[0.06]">
-            <StatPill value={effectiveUser.tasksCompleted} label="Tasks" />
-            <StatPill value={effectiveUser.notesCreated}   label="Notes" />
-            <StatPill value={effectiveUser.aiChats}         label="AI Chats" />
+            <StatPill value={profile?.stats?.tasksCompleted ?? 0} label="Tasks" />
+            <StatPill value={profile?.stats?.notesCreated ?? 0} label="Notes" />
+            <StatPill value={profile?.stats?.aiChats ?? 0} label="AI Chats" />
           </div>
         </div>
 
         {/* ── Settings card ── */}
         <div className="rounded-2xl border border-white/[0.07] bg-[#111118] px-2 py-2 shadow-xl">
-          <p className="text-xs font-semibold text-[#4B5563] uppercase tracking-widest px-4 pt-2 pb-1">
-            Settings
-          </p>
-          <SettingsRow icon={HiOutlineBell}        label="Notifications"     />
+          <p className="text-xs font-semibold text-[#4B5563] uppercase tracking-widest px-4 pt-2 pb-1">Settings</p>
+          <SettingsRow icon={HiOutlineBell} label="Notifications" />
           <SettingsRow icon={HiOutlineShieldCheck} label="Privacy & Security" />
         </div>
 
@@ -381,4 +372,4 @@ export default function ProfilePage() {
       </div>
     </div>
   );
-    }
+}

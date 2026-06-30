@@ -3,6 +3,7 @@ import { api, clearToken } from "../lib/api";
 import { useNavigate } from "react-router-dom";
 
 
+
 import {
   HiSparkles,
   HiOutlineDocumentText,
@@ -18,16 +19,24 @@ import {
   HiOutlineBookOpen,
 } from "react-icons/hi";
 
+interface UserProfile {
+  id: number;
+  name: string;
+  email: string;
+  branch?: string;
+  year?: string;
+  stats?: { tasksCompleted: number; notesCreated: number; aiChats: number };
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Task {
   id: number;
   title: string;
-  subject: string;
   due: string;
   done: boolean;
-  priority: "high" | "medium" | "low";
 }
+
 
 interface Activity {
   id: number;
@@ -38,17 +47,25 @@ interface Activity {
   time: string;
 }
 
-interface UserProfile {
-  id: number;
-  name: string;
-  email: string;
-}
-
 // ─── Mock data ────────────────────────────────────────────────────────────────
-// NOTE: tasks come from the backend now (see useEffect below).
-// TASKS is kept only as the initial/fallback state shape.
 
-const TASKS: Task[] = [];
+const USER_FALLBACK = {
+  name: "Student",
+  branch: "Not set",
+  year: "Not set",
+  streak: 7,
+  tasksCompleted: 0,
+  notesCreated: 0,
+  aiChats: 0,
+};
+
+const TASKS: Task[] = [
+  { id: 1, title: "Submit OS Assignment",      due: "Today, 11:59 PM", done: false },
+  { id: 2, title: "DBMS Lab Report",           due: "Tomorrow, 9 AM",  done: false },
+  { id: 3, title: "DSA Practice — Trees",      due: "Wed, 6 PM",       done: false },
+  { id: 4, title: "CN Module 3 Notes",         due: "Thu, 5 PM",       done: true },
+];
+
 
 const ACTIVITIES: Activity[] = [
   { id: 1, icon: HiOutlineDocumentText, iconColor: "text-[#6C63FF]", iconBg: "bg-[#6C63FF]/12", text: "Added notes for Data Structures",     time: "2 min ago"  },
@@ -57,11 +74,7 @@ const ACTIVITIES: Activity[] = [
   { id: 4, icon: HiOutlineClipboardList,iconColor: "text-sky-400",   iconBg: "bg-sky-400/10",   text: "Created assignment: DBMS Lab Report",  time: "Yesterday"  },
 ];
 
-const PRIORITY_STYLES = {
-  high:   { dot: "bg-red-400",    badge: "text-red-400 bg-red-400/10 border-red-400/20"     },
-  medium: { dot: "bg-amber-400",  badge: "text-amber-400 bg-amber-400/10 border-amber-400/20" },
-  low:    { dot: "bg-[#4B5563]",  badge: "text-[#4B5563] bg-white/5 border-white/10"        },
-};
+
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -138,7 +151,6 @@ function QuickActionCard({
 }
 
 function TaskRow({ task, onToggle }: { task: Task; onToggle: (id: number) => void }) {
-  const p = PRIORITY_STYLES[task.priority];
   return (
     <div className="flex items-start gap-3 py-3 border-b border-white/[0.05] last:border-0">
       <button
@@ -158,7 +170,6 @@ function TaskRow({ task, onToggle }: { task: Task; onToggle: (id: number) => voi
           {task.title}
         </p>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
-          <span className="text-xs text-[#4B5563]">{task.subject}</span>
           {!task.done && (
             <>
               <span className="text-[#2D3748]">·</span>
@@ -169,11 +180,6 @@ function TaskRow({ task, onToggle }: { task: Task; onToggle: (id: number) => voi
           )}
         </div>
       </div>
-      {!task.done && (
-        <span className={`shrink-0 mt-0.5 text-[10px] font-semibold px-2 py-0.5 rounded-full border uppercase tracking-wide ${p.badge}`}>
-          {task.priority}
-        </span>
-      )}
     </div>
   );
 }
@@ -182,53 +188,44 @@ function TaskRow({ task, onToggle }: { task: Task; onToggle: (id: number) => voi
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const [user, setUser] = useState<UserProfile | null>(null);
   const [tasks, setTasks] = useState<Task[]>(TASKS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [stats, setStats] = useState(USER_FALLBACK);
 
   useEffect(() => {
     let mounted = true;
-    (async () => {
+    (async () => { 
+      // 1) Load profile (name) so header reflects backend auth.
+      try {
+        const p = await api.auth.profile();
+        if (mounted) {
+          setProfile(p.user);
+          setStats(prev => ({
+            ...prev,
+            ...(p.user.stats ?? {}),
+          }));
+        }
+      } catch (e: any) {
+        // If token is invalid, existing tasks call will surface 401 and handle redirect.
+      }
+    
       try {
         setLoading(true);
         setError(null);
-
-        const [profile, res] = await Promise.all([
-          api.auth.profile(),
-          api.tasks.list(),
-        ]);
-
-        if (!mounted) return;
-
-        setUser(profile.user);
-
+        const res = await api.tasks.list();
         const mapped: Task[] = res.tasks.map((t: any) => ({
           id: Number(t.id),
           title: String(t.title),
-          subject: '',
           due: String(t.dueDate ?? t.due_date ?? ''),
           done: Boolean(t.completed),
-          priority: 'medium' as const,
         }));
-        setTasks(mapped);
-      } catch (e: unknown) {
+
+        if (mounted) setTasks(mapped);
+      } catch (e: any) {
         if (!mounted) return;
-
-        const message =
-          e instanceof Error
-            ? e.message
-            : "Unknown error";
-
-        // Invalid/expired/missing token — send the user back to login.
-        if (isAuthError(message)) {
-          clearToken();
-          navigate("/", { replace: true });
-          return;
-        }
-
-        // Any other error — show a friendly message instead of redirecting.
-        setError("We couldn't load your dashboard. Please try again.");
+        setError(String(e?.message ?? e));
       } finally {
         if (mounted) setLoading(false);
       }
@@ -236,7 +233,7 @@ export default function DashboardPage() {
     return () => {
       mounted = false;
     };
-  }, [navigate]);
+  }, []);
 
   const toggleTask = async (id: number) => {
     const current = tasks.find((t) => t.id === id);
@@ -245,16 +242,10 @@ export default function DashboardPage() {
 
     try {
       await api.tasks.update(id, { completed: nextCompleted });
-    } catch (e: unknown) {
+    } catch (e: any) {
       // revert on failure
       setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: !nextCompleted } : t)));
-
-      const message =
-        e instanceof Error
-          ? e.message
-          : "Unknown error";
-
-      if (isAuthError(message)) {
+      if (String(e?.message ?? '').toLowerCase().includes('token') || String(e?.message ?? '').includes('Authorization')) {
         clearToken();
         navigate('/', { replace: true });
       }
@@ -262,55 +253,6 @@ export default function DashboardPage() {
   };
 
   const pendingCount = tasks.filter((t) => !t.done).length;
-
-  // ── Loading state ──────────────────────────────────────────────────────────
-  // Don't render the dashboard until both profile and tasks have finished loading.
-  if (loading) {
-    return (
-      <div className="relative min-h-screen bg-[#0A0A0F] px-4 pt-10 pb-[calc(7rem+env(safe-area-inset-bottom))] overflow-x-hidden flex items-center justify-center">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute top-[-100px] left-1/2 -translate-x-1/2 w-[480px] h-[340px] rounded-full"
-          style={{
-            background:
-              "radial-gradient(ellipse at 50% 0%, rgba(108,99,255,0.16) 0%, transparent 70%)",
-            filter: "blur(40px)",
-          }}
-        />
-        <div className="relative flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-full border-2 border-[#6C63FF]/30 border-t-[#6C63FF] animate-spin" />
-          <p className="text-sm text-[#64748B]">Loading your dashboard…</p>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Error state (non-auth errors only) ──────────────────────────────────────
-  if (error) {
-    return (
-      <div className="relative min-h-screen bg-[#0A0A0F] px-4 pt-10 pb-[calc(7rem+env(safe-area-inset-bottom))] overflow-x-hidden flex items-center justify-center">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute top-[-100px] left-1/2 -translate-x-1/2 w-[480px] h-[340px] rounded-full"
-          style={{
-            background:
-              "radial-gradient(ellipse at 50% 0%, rgba(108,99,255,0.16) 0%, transparent 70%)",
-            filter: "blur(40px)",
-          }}
-        />
-        <div className="relative flex flex-col items-center gap-3 text-center max-w-xs">
-          <p className="text-sm text-[#E2E8F0] font-medium">{error}</p>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="mt-1 rounded-xl border border-white/[0.07] bg-[#111118] px-4 py-2 text-xs font-semibold text-[#6C63FF] hover:bg-[#16161F] transition-colors"
-          >
-            Try again
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
 
@@ -345,7 +287,7 @@ export default function DashboardPage() {
                 className="text-xl font-bold text-white leading-tight"
                 style={{ letterSpacing: "-0.03em" }}
               >
-                {(user?.name ?? "Student").split(" ")[0]},
+                {(profile?.name ?? USER_FALLBACK.name).split(" ")[0]},
               </h1>
               <p className="text-sm text-[#64748B] mt-0.5">Ready to crush today?</p>
             </div>
@@ -353,10 +295,10 @@ export default function DashboardPage() {
             {/* Avatar + streak */}
             <div className="flex flex-col items-center gap-1.5">
               <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#6C63FF] to-[#8B5CF6] flex items-center justify-center ring-2 ring-[#6C63FF]/30 ring-offset-2 ring-offset-[#111118]">
-                <span className="text-base font-bold text-white">{getInitials(user?.name ?? "Student")}</span>
+                <span className="text-base font-bold text-white">{getInitials(profile?.name ?? USER_FALLBACK.name)}</span>
               </div>
               <span className="flex items-center gap-1 text-[10px] font-semibold text-orange-400">
-                <HiOutlineFire className="w-3 h-3" /> --d
+                <HiOutlineFire className="w-3 h-3" /> {USER_FALLBACK.streak}d
               </span>
             </div>
           </div>
@@ -364,9 +306,9 @@ export default function DashboardPage() {
           {/* Mini stats */}
           <div className="mt-4 grid grid-cols-3 gap-2">
             {[
-              { value: "--", label: "Tasks done" },
-              { value: "--", label: "Notes"      },
-              { value: "--", label: "AI chats"   },
+              { value: stats.tasksCompleted, label: "Tasks done" },
+              { value: stats.notesCreated,   label: "Notes" },
+              { value: stats.aiChats,        label: "AI chats" },
             ].map(({ value, label }) => (
               <div
                 key={label}
@@ -389,9 +331,9 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-2">
             {[
-              { Icon: HiOutlineLightningBolt, label: "Name",   value: user?.name ?? "Student" },
-              { Icon: HiOutlineAcademicCap,   label: "Branch", value: "Not set" },
-              { Icon: HiOutlineCalendar,      label: "Year",   value: "Not set" },
+              { Icon: HiOutlineLightningBolt, label: "Name",   value: profile?.name ?? USER_FALLBACK.name },
+              { Icon: HiOutlineAcademicCap,   label: "Branch", value: profile?.branch ?? USER_FALLBACK.branch },
+              { Icon: HiOutlineCalendar,      label: "Year",   value: profile?.year ?? USER_FALLBACK.year },
             ].map(({ Icon, label, value }) => (
               <div key={label} className="flex items-center gap-3 rounded-xl bg-white/[0.03] border border-white/[0.05] px-3 py-2.5">
                 <Icon className="w-4 h-4 text-[#6C63FF] shrink-0" />
@@ -411,7 +353,7 @@ export default function DashboardPage() {
             <QuickActionCard
               icon={HiOutlineDocumentText}
               label="Notes"
-              sub="-- notes saved"
+              sub={`${stats.notesCreated} notes saved`}
               accent="#6C63FF"
               glow="radial-gradient(ellipse at top left, rgba(108,99,255,0.12), transparent 70%)"
             />
