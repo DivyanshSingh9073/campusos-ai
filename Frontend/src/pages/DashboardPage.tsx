@@ -38,24 +38,17 @@ interface Activity {
   time: string;
 }
 
+interface UserProfile {
+  id: number;
+  name: string;
+  email: string;
+}
+
 // ─── Mock data ────────────────────────────────────────────────────────────────
+// NOTE: tasks come from the backend now (see useEffect below).
+// TASKS is kept only as the initial/fallback state shape.
 
-const USER = {
-  name: "Divyansh Singh",
-  branch: "Computer Science & Engineering",
-  year: "2nd Year",
-  streak: 7,
-  tasksCompleted: 48,
-  notesCreated: 31,
-  aiChats: 124,
-};
-
-const TASKS: Task[] = [
-  { id: 1, title: "Submit OS Assignment",      subject: "Operating Systems",     due: "Today, 11:59 PM", done: false, priority: "high"   },
-  { id: 2, title: "DBMS Lab Report",           subject: "Database Management",   due: "Tomorrow, 9 AM",  done: false, priority: "medium" },
-  { id: 3, title: "DSA Practice — Trees",      subject: "Data Structures",       due: "Wed, 6 PM",       done: false, priority: "low"    },
-  { id: 4, title: "CN Module 3 Notes",         subject: "Computer Networks",     due: "Thu, 5 PM",       done: true,  priority: "low"    },
-];
+const TASKS: Task[] = [];
 
 const ACTIVITIES: Activity[] = [
   { id: 1, icon: HiOutlineDocumentText, iconColor: "text-[#6C63FF]", iconBg: "bg-[#6C63FF]/12", text: "Added notes for Data Structures",     time: "2 min ago"  },
@@ -81,6 +74,12 @@ function getGreeting() {
   if (h < 12) return "Good morning";
   if (h < 17) return "Good afternoon";
   return "Good evening";
+}
+
+/** True if an error message looks like an auth failure (expired/invalid/missing token). */
+function isAuthError(message: string): boolean {
+  const m = message.toLowerCase();
+  return m.includes("token") || m.includes("authorization") || m.includes("unauthorized") || m.includes("401");
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -183,6 +182,7 @@ function TaskRow({ task, onToggle }: { task: Task; onToggle: (id: number) => voi
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [tasks, setTasks] = useState<Task[]>(TASKS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -193,7 +193,16 @@ export default function DashboardPage() {
       try {
         setLoading(true);
         setError(null);
-        const res = await api.tasks.list();
+
+        const [profile, res] = await Promise.all([
+          api.auth.profile(),
+          api.tasks.list(),
+        ]);
+
+        if (!mounted) return;
+
+        setUser(profile.user);
+
         const mapped: Task[] = res.tasks.map((t: any) => ({
           id: Number(t.id),
           title: String(t.title),
@@ -202,11 +211,24 @@ export default function DashboardPage() {
           done: Boolean(t.completed),
           priority: 'medium' as const,
         }));
-
-        if (mounted) setTasks(mapped);
-      } catch (e: any) {
+        setTasks(mapped);
+      } catch (e: unknown) {
         if (!mounted) return;
-        setError(String(e?.message ?? e));
+
+        const message =
+          e instanceof Error
+            ? e.message
+            : "Unknown error";
+
+        // Invalid/expired/missing token — send the user back to login.
+        if (isAuthError(message)) {
+          clearToken();
+          navigate("/", { replace: true });
+          return;
+        }
+
+        // Any other error — show a friendly message instead of redirecting.
+        setError("We couldn't load your dashboard. Please try again.");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -214,7 +236,7 @@ export default function DashboardPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [navigate]);
 
   const toggleTask = async (id: number) => {
     const current = tasks.find((t) => t.id === id);
@@ -223,10 +245,16 @@ export default function DashboardPage() {
 
     try {
       await api.tasks.update(id, { completed: nextCompleted });
-    } catch (e: any) {
+    } catch (e: unknown) {
       // revert on failure
       setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: !nextCompleted } : t)));
-      if (String(e?.message ?? '').toLowerCase().includes('token') || String(e?.message ?? '').includes('Authorization')) {
+
+      const message =
+        e instanceof Error
+          ? e.message
+          : "Unknown error";
+
+      if (isAuthError(message)) {
         clearToken();
         navigate('/', { replace: true });
       }
@@ -234,6 +262,55 @@ export default function DashboardPage() {
   };
 
   const pendingCount = tasks.filter((t) => !t.done).length;
+
+  // ── Loading state ──────────────────────────────────────────────────────────
+  // Don't render the dashboard until both profile and tasks have finished loading.
+  if (loading) {
+    return (
+      <div className="relative min-h-screen bg-[#0A0A0F] px-4 pt-10 pb-[calc(7rem+env(safe-area-inset-bottom))] overflow-x-hidden flex items-center justify-center">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute top-[-100px] left-1/2 -translate-x-1/2 w-[480px] h-[340px] rounded-full"
+          style={{
+            background:
+              "radial-gradient(ellipse at 50% 0%, rgba(108,99,255,0.16) 0%, transparent 70%)",
+            filter: "blur(40px)",
+          }}
+        />
+        <div className="relative flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-full border-2 border-[#6C63FF]/30 border-t-[#6C63FF] animate-spin" />
+          <p className="text-sm text-[#64748B]">Loading your dashboard…</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Error state (non-auth errors only) ──────────────────────────────────────
+  if (error) {
+    return (
+      <div className="relative min-h-screen bg-[#0A0A0F] px-4 pt-10 pb-[calc(7rem+env(safe-area-inset-bottom))] overflow-x-hidden flex items-center justify-center">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute top-[-100px] left-1/2 -translate-x-1/2 w-[480px] h-[340px] rounded-full"
+          style={{
+            background:
+              "radial-gradient(ellipse at 50% 0%, rgba(108,99,255,0.16) 0%, transparent 70%)",
+            filter: "blur(40px)",
+          }}
+        />
+        <div className="relative flex flex-col items-center gap-3 text-center max-w-xs">
+          <p className="text-sm text-[#E2E8F0] font-medium">{error}</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-1 rounded-xl border border-white/[0.07] bg-[#111118] px-4 py-2 text-xs font-semibold text-[#6C63FF] hover:bg-[#16161F] transition-colors"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
 
@@ -268,7 +345,7 @@ export default function DashboardPage() {
                 className="text-xl font-bold text-white leading-tight"
                 style={{ letterSpacing: "-0.03em" }}
               >
-                {USER.name.split(" ")[0]},
+                {(user?.name ?? "Student").split(" ")[0]},
               </h1>
               <p className="text-sm text-[#64748B] mt-0.5">Ready to crush today?</p>
             </div>
@@ -276,10 +353,10 @@ export default function DashboardPage() {
             {/* Avatar + streak */}
             <div className="flex flex-col items-center gap-1.5">
               <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#6C63FF] to-[#8B5CF6] flex items-center justify-center ring-2 ring-[#6C63FF]/30 ring-offset-2 ring-offset-[#111118]">
-                <span className="text-base font-bold text-white">{getInitials(USER.name)}</span>
+                <span className="text-base font-bold text-white">{getInitials(user?.name ?? "Student")}</span>
               </div>
               <span className="flex items-center gap-1 text-[10px] font-semibold text-orange-400">
-                <HiOutlineFire className="w-3 h-3" /> {USER.streak}d
+                <HiOutlineFire className="w-3 h-3" /> --d
               </span>
             </div>
           </div>
@@ -287,9 +364,9 @@ export default function DashboardPage() {
           {/* Mini stats */}
           <div className="mt-4 grid grid-cols-3 gap-2">
             {[
-              { value: USER.tasksCompleted, label: "Tasks done" },
-              { value: USER.notesCreated,   label: "Notes"      },
-              { value: USER.aiChats,        label: "AI chats"   },
+              { value: "--", label: "Tasks done" },
+              { value: "--", label: "Notes"      },
+              { value: "--", label: "AI chats"   },
             ].map(({ value, label }) => (
               <div
                 key={label}
@@ -312,9 +389,9 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-2">
             {[
-              { Icon: HiOutlineLightningBolt, label: "Name",   value: USER.name   },
-              { Icon: HiOutlineAcademicCap,   label: "Branch", value: USER.branch },
-              { Icon: HiOutlineCalendar,      label: "Year",   value: USER.year   },
+              { Icon: HiOutlineLightningBolt, label: "Name",   value: user?.name ?? "Student" },
+              { Icon: HiOutlineAcademicCap,   label: "Branch", value: "Not set" },
+              { Icon: HiOutlineCalendar,      label: "Year",   value: "Not set" },
             ].map(({ Icon, label, value }) => (
               <div key={label} className="flex items-center gap-3 rounded-xl bg-white/[0.03] border border-white/[0.05] px-3 py-2.5">
                 <Icon className="w-4 h-4 text-[#6C63FF] shrink-0" />
@@ -334,7 +411,7 @@ export default function DashboardPage() {
             <QuickActionCard
               icon={HiOutlineDocumentText}
               label="Notes"
-              sub="31 notes saved"
+              sub="-- notes saved"
               accent="#6C63FF"
               glow="radial-gradient(ellipse at top left, rgba(108,99,255,0.12), transparent 70%)"
             />
