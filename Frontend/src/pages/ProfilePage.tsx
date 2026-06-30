@@ -18,8 +18,8 @@ import {
 // ─── Mock user data ───────────────────────────────────────────────────────────
 
 const USER = {
-  name: "Divyansh Singh",
-  email: "divyansh@example.com",
+  name: "Student",
+  email: "student@example.com",
   branch: "Computer Science & Engineering",
   year: "2nd Year",
   avatar: null as string | null, // swap with real URL when available

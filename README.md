@@ -70,8 +70,7 @@ CampusOS-AI/
 ---
 
 ## 👥 Team
-
-- Divyansh Singh
+- [Your Name]
 - Fariza Sultana
 
 ---

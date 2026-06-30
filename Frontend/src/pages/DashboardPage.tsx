@@ -38,17 +38,8 @@ interface Activity {
   time: string;
 }
 
-// ─── Mock data ────────────────────────────────────────────────────────────────
 
-const USER = {
-  name: "Divyansh Singh",
-  branch: "Computer Science & Engineering",
-  year: "2nd Year",
-  streak: 7,
-  tasksCompleted: 48,
-  notesCreated: 31,
-  aiChats: 124,
-};
+
 
 const TASKS: Task[] = [
   { id: 1, title: "Submit OS Assignment",      subject: "Operating Systems",     due: "Today, 11:59 PM", done: false, priority: "high"   },
@@ -186,6 +177,17 @@ export default function DashboardPage() {
   const [tasks, setTasks] = useState<Task[]>(TASKS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // A placeholder user object. You should replace this with actual user data
+  // fetched from your authentication context or API.
+  const [user] = useState({
+    name: "Student",
+    branch: "Computer Science",
+    year: "3rd Year",
+    streak: 0,
+    tasksCompleted: 0,
+    notesCreated: 0,
+    aiChats: 0,
+  });
 
   useEffect(() => {
     let mounted = true;
@@ -268,7 +270,7 @@ export default function DashboardPage() {
                 className="text-xl font-bold text-white leading-tight"
                 style={{ letterSpacing: "-0.03em" }}
               >
-                {USER.name.split(" ")[0]},
+                {user.name.split(" ")[0]},
               </h1>
               <p className="text-sm text-[#64748B] mt-0.5">Ready to crush today?</p>
             </div>
@@ -276,10 +278,10 @@ export default function DashboardPage() {
             {/* Avatar + streak */}
             <div className="flex flex-col items-center gap-1.5">
               <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#6C63FF] to-[#8B5CF6] flex items-center justify-center ring-2 ring-[#6C63FF]/30 ring-offset-2 ring-offset-[#111118]">
-                <span className="text-base font-bold text-white">{getInitials(USER.name)}</span>
+                <span className="text-base font-bold text-white">{getInitials(user.name)}</span>
               </div>
               <span className="flex items-center gap-1 text-[10px] font-semibold text-orange-400">
-                <HiOutlineFire className="w-3 h-3" /> {USER.streak}d
+                <HiOutlineFire className="w-3 h-3" /> {user.streak}d
               </span>
             </div>
           </div>
@@ -287,9 +289,9 @@ export default function DashboardPage() {
           {/* Mini stats */}
           <div className="mt-4 grid grid-cols-3 gap-2">
             {[
-              { value: USER.tasksCompleted, label: "Tasks done" },
-              { value: USER.notesCreated,   label: "Notes"      },
-              { value: USER.aiChats,        label: "AI chats"   },
+              { value: user.tasksCompleted, label: "Tasks done" },
+              { value: user.notesCreated,   label: "Notes"      },
+              { value: user.aiChats,        label: "AI chats"   },
             ].map(({ value, label }) => (
               <div
                 key={label}
@@ -312,9 +314,9 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-2">
             {[
-              { Icon: HiOutlineLightningBolt, label: "Name",   value: USER.name   },
-              { Icon: HiOutlineAcademicCap,   label: "Branch", value: USER.branch },
-              { Icon: HiOutlineCalendar,      label: "Year",   value: USER.year   },
+              { Icon: HiOutlineLightningBolt, label: "Name",   value: user.name   },
+              { Icon: HiOutlineAcademicCap,   label: "Branch", value: user.branch },
+              { Icon: HiOutlineCalendar,      label: "Year",   value: user.year   },
             ].map(({ Icon, label, value }) => (
               <div key={label} className="flex items-center gap-3 rounded-xl bg-white/[0.03] border border-white/[0.05] px-3 py-2.5">
                 <Icon className="w-4 h-4 text-[#6C63FF] shrink-0" />
