@@ -15,21 +15,43 @@ import {
   HiCheckCircle,
 } from "react-icons/hi";
 
-// ─── Mock user data ───────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-const USER = {
-  name: "Divyansh Singh",
-  email: "divyansh@example.com",
-  branch: "Computer Science & Engineering",
-  year: "2nd Year",
-  avatar: null as string | null, // swap with real URL when available
-  joinedYear: "2025",
-  tasksCompleted: 48,
-  notesCreated: 31,
-  aiChats: 124,
+interface UserProfile {
+  id: number;
+  name: string;
+  email: string;
+}
+
+interface EffectiveUser {
+  name: string;
+  email: string;
+  branch: string;
+  year: string;
+  avatar: string | null;
+  joinedYear: string;
+  tasksCompleted: number;
+  notesCreated: number;
+  aiChats: number;
+}
+
+// ─── Safe defaults ────────────────────────────────────────────────────────────
+// Used until the real profile loads, and as fallbacks for fields the
+// backend does not yet return (branch, year, stats, etc).
+
+const DEFAULT_USER: EffectiveUser = {
+  name: "Student",
+  email: "",
+  branch: "Not set",
+  year: "Not set",
+  avatar: null,
+  joinedYear: "",
+  tasksCompleted: 0,
+  notesCreated: 0,
+  aiChats: 0,
 };
 
-// ─── Avatar initials fallback ─────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getInitials(name: string) {
   return name
@@ -38,6 +60,12 @@ function getInitials(name: string) {
     .map((n) => n[0])
     .join("")
     .toUpperCase();
+}
+
+/** True if an error message looks like an auth failure (expired/invalid/missing token). */
+function isAuthError(message: string): boolean {
+  const m = message.toLowerCase();
+  return m.includes("token") || m.includes("authorization") || m.includes("unauthorized") || m.includes("401");
 }
 
 // ─── Stat card ────────────────────────────────────────────────────────────────
@@ -126,7 +154,7 @@ export default function ProfilePage() {
   const [loggedOut, setLoggedOut] = useState(false);
   const [editToast, setEditToast] = useState(false);
 
-  const [profile, setProfile] = useState<{ id: number; name: string; email: string } | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -135,12 +163,12 @@ export default function ProfilePage() {
     setEditToast(true);
     setTimeout(() => setEditToast(false), 2500);
   };
-
+  
   const handleLogout = () => {
-    setShowLogout(false);
-    clearToken();
-    setLoggedOut(true);
-  };
+  setShowLogout(false);
+  clearToken();
+  navigate("/", { replace: true });
+};
 
   useEffect(() => {
     let mounted = true;
@@ -151,9 +179,23 @@ export default function ProfilePage() {
         const res = await api.auth.profile();
         if (!mounted) return;
         setProfile(res.user);
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (!mounted) return;
-        setError(String(e?.message ?? e));
+
+        const message =
+          e instanceof Error
+            ? e.message
+            : "Unknown error";
+
+        // Invalid/expired/missing token — send the user back to login.
+        // Never fall back to showing stale or another user's profile.
+        if (isAuthError(message)) {
+          clearToken();
+          navigate("/", { replace: true });
+          return;
+        }
+
+        setError(message);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -161,7 +203,7 @@ export default function ProfilePage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [navigate]);
 
 
   if (loading) {
@@ -183,7 +225,7 @@ export default function ProfilePage() {
           </div>
           <p className="text-white font-semibold text-lg mb-1">You're logged out</p>
           <p className="text-sm text-[#4B5563]">
-            {error ? 'Session expired. Please sign in again.' : `See you next time, ${USER.name.split(' ')[0]}.`}
+            {error ? 'Session expired. Please sign in again.' : 'See you next time.'}
           </p>
 
           <button
@@ -198,9 +240,14 @@ export default function ProfilePage() {
     );
   }
 
-  const effective = profile
-    ? { ...USER, name: profile.name, email: profile.email }
-    : USER
+  // Merge the safe defaults with whatever the backend actually returned.
+  // Only fields present on `profile` override the defaults — branch, year,
+  // avatar, and the stats are not yet returned by the backend, so they
+  // always fall back to DEFAULT_USER until the API supports them.
+  const effectiveUser: EffectiveUser = {
+    ...DEFAULT_USER,
+    ...(profile ?? {}),
+  };
 
   return (
 <div className="relative min-h-screen bg-[#0A0A0F] px-4 py-10 pb-[calc(7rem+env(safe-area-inset-bottom))] overflow-x-hidden">
@@ -235,15 +282,15 @@ export default function ProfilePage() {
 
           {/* Avatar */}
           <div className="relative inline-block mb-4">
-            {USER.avatar ? (
+            {effectiveUser.avatar ? (
               <img
-                src={USER.avatar}
-                alt={USER.name}
+                src={effectiveUser.avatar}
+                alt={effectiveUser.name}
                 className="w-20 h-20 rounded-full object-cover ring-2 ring-[#6C63FF]/40 ring-offset-2 ring-offset-[#111118]"
               />
             ) : (
               <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#6C63FF] to-[#8B5CF6] flex items-center justify-center ring-2 ring-[#6C63FF]/40 ring-offset-2 ring-offset-[#111118]">
-                <span className="text-xl font-bold text-white">{getInitials(USER.name)}</span>
+                <span className="text-xl font-bold text-white">{getInitials(effectiveUser.name)}</span>
               </div>
             )}
             {/* Online dot */}
@@ -252,16 +299,16 @@ export default function ProfilePage() {
 
           {/* Name */}
           <h2 className="text-xl font-bold text-white mb-0.5" style={{ letterSpacing: "-0.02em" }}>
-            {USER.name}
+            {effectiveUser.name}
           </h2>
-          <p className="text-xs text-[#4B5563] mb-5">Joined {USER.joinedYear}</p>
+          <p className="text-xs text-[#4B5563] mb-5">Joined {effectiveUser.joinedYear}</p>
 
           {/* Info pills */}
           <div className="space-y-2 text-left mb-6">
             {[
-              { Icon: HiOutlineMail,       value: USER.email                    },
-              { Icon: HiOutlineAcademicCap, value: USER.branch                  },
-              { Icon: HiOutlineCalendar,   value: USER.year                     },
+              { Icon: HiOutlineMail,       value: effectiveUser.email                    },
+              { Icon: HiOutlineAcademicCap, value: effectiveUser.branch                  },
+              { Icon: HiOutlineCalendar,   value: effectiveUser.year                     },
             ].map(({ Icon, value }) => (
               <div
                 key={value}
@@ -298,9 +345,9 @@ export default function ProfilePage() {
         <div className="rounded-2xl border border-white/[0.07] bg-[#111118] px-6 py-5 shadow-xl">
           <p className="text-xs font-semibold text-[#4B5563] uppercase tracking-widest mb-4">Activity</p>
           <div className="flex items-center justify-around divide-x divide-white/[0.06]">
-            <StatPill value={USER.tasksCompleted} label="Tasks" />
-            <StatPill value={USER.notesCreated}   label="Notes" />
-            <StatPill value={USER.aiChats}         label="AI Chats" />
+            <StatPill value={effectiveUser.tasksCompleted} label="Tasks" />
+            <StatPill value={effectiveUser.notesCreated}   label="Notes" />
+            <StatPill value={effectiveUser.aiChats}         label="AI Chats" />
           </div>
         </div>
 
@@ -334,4 +381,4 @@ export default function ProfilePage() {
       </div>
     </div>
   );
-}
+    }
