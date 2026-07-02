@@ -3,6 +3,7 @@ import { api, clearToken } from "../lib/api";
 import { useNavigate } from "react-router-dom";
 
 
+
 import {
   HiSparkles,
   HiOutlineDocumentText,
@@ -18,16 +19,24 @@ import {
   HiOutlineBookOpen,
 } from "react-icons/hi";
 
+interface UserProfile {
+  id: number;
+  name: string;
+  email: string;
+  branch?: string;
+  year?: string;
+  stats?: { tasksCompleted: number; notesCreated: number; aiChats: number };
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Task {
   id: number;
   title: string;
-  subject: string;
   due: string;
   done: boolean;
-  priority: "high" | "medium" | "low";
 }
+
 
 interface Activity {
   id: number;
@@ -40,22 +49,23 @@ interface Activity {
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
-const USER = {
-  name: "Divyansh Singh",
-  branch: "Computer Science & Engineering",
-  year: "2nd Year",
+const USER_FALLBACK = {
+  name: "Student",
+  branch: "Not set",
+  year: "Not set",
   streak: 7,
-  tasksCompleted: 48,
-  notesCreated: 31,
-  aiChats: 124,
+  tasksCompleted: 0,
+  notesCreated: 0,
+  aiChats: 0,
 };
 
 const TASKS: Task[] = [
-  { id: 1, title: "Submit OS Assignment",      subject: "Operating Systems",     due: "Today, 11:59 PM", done: false, priority: "high"   },
-  { id: 2, title: "DBMS Lab Report",           subject: "Database Management",   due: "Tomorrow, 9 AM",  done: false, priority: "medium" },
-  { id: 3, title: "DSA Practice — Trees",      subject: "Data Structures",       due: "Wed, 6 PM",       done: false, priority: "low"    },
-  { id: 4, title: "CN Module 3 Notes",         subject: "Computer Networks",     due: "Thu, 5 PM",       done: true,  priority: "low"    },
+  { id: 1, title: "Submit OS Assignment",      due: "Today, 11:59 PM", done: false },
+  { id: 2, title: "DBMS Lab Report",           due: "Tomorrow, 9 AM",  done: false },
+  { id: 3, title: "DSA Practice — Trees",      due: "Wed, 6 PM",       done: false },
+  { id: 4, title: "CN Module 3 Notes",         due: "Thu, 5 PM",       done: true },
 ];
+
 
 const ACTIVITIES: Activity[] = [
   { id: 1, icon: HiOutlineDocumentText, iconColor: "text-[#6C63FF]", iconBg: "bg-[#6C63FF]/12", text: "Added notes for Data Structures",     time: "2 min ago"  },
@@ -64,11 +74,7 @@ const ACTIVITIES: Activity[] = [
   { id: 4, icon: HiOutlineClipboardList,iconColor: "text-sky-400",   iconBg: "bg-sky-400/10",   text: "Created assignment: DBMS Lab Report",  time: "Yesterday"  },
 ];
 
-const PRIORITY_STYLES = {
-  high:   { dot: "bg-red-400",    badge: "text-red-400 bg-red-400/10 border-red-400/20"     },
-  medium: { dot: "bg-amber-400",  badge: "text-amber-400 bg-amber-400/10 border-amber-400/20" },
-  low:    { dot: "bg-[#4B5563]",  badge: "text-[#4B5563] bg-white/5 border-white/10"        },
-};
+
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -81,6 +87,12 @@ function getGreeting() {
   if (h < 12) return "Good morning";
   if (h < 17) return "Good afternoon";
   return "Good evening";
+}
+
+/** True if an error message looks like an auth failure (expired/invalid/missing token). */
+function isAuthError(message: string): boolean {
+  const m = message.toLowerCase();
+  return m.includes("token") || m.includes("authorization") || m.includes("unauthorized") || m.includes("401");
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -139,7 +151,6 @@ function QuickActionCard({
 }
 
 function TaskRow({ task, onToggle }: { task: Task; onToggle: (id: number) => void }) {
-  const p = PRIORITY_STYLES[task.priority];
   return (
     <div className="flex items-start gap-3 py-3 border-b border-white/[0.05] last:border-0">
       <button
@@ -159,7 +170,6 @@ function TaskRow({ task, onToggle }: { task: Task; onToggle: (id: number) => voi
           {task.title}
         </p>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
-          <span className="text-xs text-[#4B5563]">{task.subject}</span>
           {!task.done && (
             <>
               <span className="text-[#2D3748]">·</span>
@@ -170,11 +180,6 @@ function TaskRow({ task, onToggle }: { task: Task; onToggle: (id: number) => voi
           )}
         </div>
       </div>
-      {!task.done && (
-        <span className={`shrink-0 mt-0.5 text-[10px] font-semibold px-2 py-0.5 rounded-full border uppercase tracking-wide ${p.badge}`}>
-          {task.priority}
-        </span>
-      )}
     </div>
   );
 }
@@ -186,10 +191,26 @@ export default function DashboardPage() {
   const [tasks, setTasks] = useState<Task[]>(TASKS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [stats, setStats] = useState(USER_FALLBACK);
 
   useEffect(() => {
     let mounted = true;
-    (async () => {
+    (async () => { 
+      // 1) Load profile (name) so header reflects backend auth.
+      try {
+        const p = await api.auth.profile();
+        if (mounted) {
+          setProfile(p.user);
+          setStats(prev => ({
+            ...prev,
+            ...(p.user.stats ?? {}),
+          }));
+        }
+      } catch (e: any) {
+        // If token is invalid, existing tasks call will surface 401 and handle redirect.
+      }
+    
       try {
         setLoading(true);
         setError(null);
@@ -197,10 +218,8 @@ export default function DashboardPage() {
         const mapped: Task[] = res.tasks.map((t: any) => ({
           id: Number(t.id),
           title: String(t.title),
-          subject: '',
           due: String(t.dueDate ?? t.due_date ?? ''),
           done: Boolean(t.completed),
-          priority: 'medium' as const,
         }));
 
         if (mounted) setTasks(mapped);
@@ -268,7 +287,7 @@ export default function DashboardPage() {
                 className="text-xl font-bold text-white leading-tight"
                 style={{ letterSpacing: "-0.03em" }}
               >
-                {USER.name.split(" ")[0]},
+                {(profile?.name ?? USER_FALLBACK.name).split(" ")[0]},
               </h1>
               <p className="text-sm text-[#64748B] mt-0.5">Ready to crush today?</p>
             </div>
@@ -276,10 +295,10 @@ export default function DashboardPage() {
             {/* Avatar + streak */}
             <div className="flex flex-col items-center gap-1.5">
               <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#6C63FF] to-[#8B5CF6] flex items-center justify-center ring-2 ring-[#6C63FF]/30 ring-offset-2 ring-offset-[#111118]">
-                <span className="text-base font-bold text-white">{getInitials(USER.name)}</span>
+                <span className="text-base font-bold text-white">{getInitials(profile?.name ?? USER_FALLBACK.name)}</span>
               </div>
               <span className="flex items-center gap-1 text-[10px] font-semibold text-orange-400">
-                <HiOutlineFire className="w-3 h-3" /> {USER.streak}d
+                <HiOutlineFire className="w-3 h-3" /> {USER_FALLBACK.streak}d
               </span>
             </div>
           </div>
@@ -287,9 +306,9 @@ export default function DashboardPage() {
           {/* Mini stats */}
           <div className="mt-4 grid grid-cols-3 gap-2">
             {[
-              { value: USER.tasksCompleted, label: "Tasks done" },
-              { value: USER.notesCreated,   label: "Notes"      },
-              { value: USER.aiChats,        label: "AI chats"   },
+              { value: stats.tasksCompleted, label: "Tasks done" },
+              { value: stats.notesCreated,   label: "Notes" },
+              { value: stats.aiChats,        label: "AI chats" },
             ].map(({ value, label }) => (
               <div
                 key={label}
@@ -312,9 +331,9 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-2">
             {[
-              { Icon: HiOutlineLightningBolt, label: "Name",   value: USER.name   },
-              { Icon: HiOutlineAcademicCap,   label: "Branch", value: USER.branch },
-              { Icon: HiOutlineCalendar,      label: "Year",   value: USER.year   },
+              { Icon: HiOutlineLightningBolt, label: "Name",   value: profile?.name ?? USER_FALLBACK.name },
+              { Icon: HiOutlineAcademicCap,   label: "Branch", value: profile?.branch ?? USER_FALLBACK.branch },
+              { Icon: HiOutlineCalendar,      label: "Year",   value: profile?.year ?? USER_FALLBACK.year },
             ].map(({ Icon, label, value }) => (
               <div key={label} className="flex items-center gap-3 rounded-xl bg-white/[0.03] border border-white/[0.05] px-3 py-2.5">
                 <Icon className="w-4 h-4 text-[#6C63FF] shrink-0" />
@@ -334,7 +353,7 @@ export default function DashboardPage() {
             <QuickActionCard
               icon={HiOutlineDocumentText}
               label="Notes"
-              sub="31 notes saved"
+              sub={`${stats.notesCreated} notes saved`}
               accent="#6C63FF"
               glow="radial-gradient(ellipse at top left, rgba(108,99,255,0.12), transparent 70%)"
             />
