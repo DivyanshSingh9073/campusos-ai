@@ -18,9 +18,9 @@ export function clearToken(): void {
   window.localStorage.removeItem(TOKEN_KEY)
 }
 
-// ─── Base URL / Fetch ────────────────────────────────────────────────────────
+// ─── Base URL / Fetch ─────────────────────────────────────────────────────────
 // Vite dev server can proxy /api -> backend, so we call relative /api paths.
-// If you use VITE_API_BASE_URL you can set it; otherwise rely on /api proxy.
+// If you set VITE_API_BASE_URL it will be used; otherwise we rely on /api proxy.
 
 const BASE = '/api'
 
@@ -28,17 +28,6 @@ function getApiBaseUrl(): string {
   const v = (import.meta as any)?.env?.VITE_API_BASE_URL as string | undefined
   const trimmed = typeof v === 'string' ? v.trim() : ''
   return trimmed || BASE
-}
-
-function makeHeaders(): HeadersInit {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  }
-
-  const token = getToken()
-  if (token) headers.Authorization = `Bearer ${token}`
-
-  return headers
 }
 
 async function request<T>(
@@ -57,14 +46,14 @@ async function request<T>(
     if (token) headers.Authorization = `Bearer ${token}`
   }
 
-  const res = await fetch(`${getApiBaseUrl()}${path.startsWith('/') ? path : `/${path}`}`, {
-    method,
-    headers: {
-      ...headers,
-    },
-    body: opts?.body === undefined ? undefined : JSON.stringify(opts.body),
-    credentials: 'include',
-  })
+  const res = await fetch(`${getApiBaseUrl()}${path.startsWith('/') ? path : `/${path}`}`,
+    {
+      method,
+      headers,
+      body: opts?.body === undefined ? undefined : JSON.stringify(opts.body),
+      credentials: 'include',
+    }
+  )
 
   const ct = res.headers.get('content-type') ?? ''
   const data: any = ct.includes('application/json')
@@ -132,23 +121,32 @@ export const api = {
 
   notes: {
     list() {
-      return request<{ notes: Array<{ id: number; title: string; subject: string; fileUrl: string }> }>(
+      // Backend returns: { notes: [{ id, title, content, updatedAt }] }
+      return request<{ notes: Array<{ id: number; title: string; content: string; updatedAt: string | null }> }>(
         '/notes',
         { method: 'GET' }
       )
     },
 
     get(id: number) {
-      return request<{ note: { id: number; title: string; subject: string; fileUrl: string } }>(
+      // Backend returns: { note: { id, title, content, updatedAt } }
+      return request<{ note: { id: number; title: string; content: string; updatedAt: string | null } }>(
         `/notes/${id}`,
         { method: 'GET' }
       )
     },
 
-    upload(body: { title: string; subject: string; file_url: string }) {
-      return request<{ note: { id: number; title: string; subject: string; fileUrl: string } }>(
-        '/notes/upload',
+    create(body: { title: string; content?: string }) {
+      return request<{ note: { id: number; title: string; content: string; updatedAt: string | null } }>(
+        '/notes',
         { method: 'POST', body }
+      )
+    },
+
+    update(id: number, body: { title?: string; content?: string }) {
+      return request<{ note: { id: number; title: string; content: string; updatedAt: string | null } }>(
+        `/notes/${id}`,
+        { method: 'PUT', body }
       )
     },
 
@@ -162,4 +160,5 @@ export const api = {
 export function useApi() {
   return useMemo(() => api, [])
 }
+
 

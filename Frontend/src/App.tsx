@@ -10,7 +10,11 @@ import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import DashboardPage from "./pages/DashboardPage";
 import ProfilePage from "./pages/ProfilePage";
+import NotesPage from "./pages/NotesPage";
+import NoteEditorPage from "./pages/NoteEditorPage";
 import BottomNav from "./pages/components/BottomNav";
+
+
 
 const NAV_ROUTES = ["/dashboard", "/profile"];
 
@@ -24,6 +28,11 @@ function Layout() {
         <Route path="/" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/notes" element={<NotesPage />} />
+        <Route path="/notes/new" element={<NoteEditorPage />} />
+        <Route path="/notes/:id" element={<NoteEditorPage />} />
+
+
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
