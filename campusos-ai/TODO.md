@@ -17,18 +17,17 @@
   - [ ] Empty/loading/error states
   - [ ] Simple monthly calendar highlighting study dates and today
   - [ ] Selecting a day filters sessions list
-- [ ] Add new route in Frontend/src/App.tsx for /study-planner
+- [x] Add new route in Frontend/src/App.tsx for /study-planner
 - [x] Integrate Dashboard integration:
   - [x] Fetch today + upcoming study sessions
   - [x] Show next study date
   - [x] Update DashboardPage.tsx UI cards/sections
 
 ## Validation / Error Handling
-- [ ] Ensure all backend endpoints validate required fields (subject, topic, studyDate)
-- [ ] Ensure each user only sees their own sessions
-- [ ] Return proper HTTP status codes (400/401/404/500 etc.)
+- [x] Ensure all backend endpoints validate required fields (subject, topic, studyDate)
+- [x] Ensure each user only sees their own sessions
+- [x] Return proper HTTP status codes (400/401/404/500 etc.)
 
 ## Build / Compile
-- [ ] TypeScript compile backend + frontend without errors
-- [ ] Run lint/build if available
-
+- [x] TypeScript compile backend + frontend without errors
+- [x] Run lint/build if available
