@@ -1,25 +1,34 @@
-# CampusOS Phase 6 - Assignments / Tasks Module
+# CampusOS - Phase 7 TODO
 
-## Status
-- [x] Inspect repo structure (backend tasks routes, frontend API client, routing, DB schema)
-- [x] Implement DB + backend alignment for Phase 6 task model (description + createdAt)
+## Backend
+- [ ] Add study_planner table to Backend/src/db/schema.sql (subject, topic, study_date, completed, created_at, user_id FK)
+- [ ] Create Study Planner router: GET/POST/PUT/DELETE /api/study-planner
+- [ ] Add Study planner service helpers (optional) for listing/updating
+- [ ] Add TypeScript types for study planner
+- [ ] Wire router into Backend/src/index.ts
 
-- [x] Implement frontend Tasks page (CRUD UI, modals, dialogs, toasts, loading/error/empty states)
+## Frontend
+- [ ] Add API client methods in Frontend/src/lib/api.ts for study planner CRUD
+- [ ] Create /study-planner page (StudyPlannerPage.tsx) with:
+  - [ ] Today's sessions + upcoming
+  - [ ] Add session modal (validate required fields)
+  - [ ] Edit session modal
+  - [ ] Delete confirmation
+  - [ ] Empty/loading/error states
+  - [ ] Simple monthly calendar highlighting study dates and today
+  - [ ] Selecting a day filters sessions list
+- [ ] Add new route in Frontend/src/App.tsx for /study-planner
+- [ ] Integrate Dashboard integration:
+  - [ ] Fetch today + upcoming study sessions
+  - [ ] Show next study date
+  - [ ] Update DashboardPage.tsx UI cards/sections
 
+## Validation / Error Handling
+- [ ] Ensure all backend endpoints validate required fields (subject, topic, studyDate)
+- [ ] Ensure each user only sees their own sessions
+- [ ] Return proper HTTP status codes (400/401/404/500 etc.)
 
-- [x] Wire Tasks route + BottomNav
-
-- [ ] Update Dashboard (pending/completed counts + recent tasks from backend)
-
-- [ ] Testing checklist verification
-
-## Testing checklist (after implementation)
-- [ ] Create task (title required, trim input)
-- [ ] Edit task
-- [ ] Delete task
-- [ ] Mark complete
-- [ ] Refresh page (data persists)
-- [ ] Dashboard updates automatically
-- [ ] Mobile UI works
-- [ ] No TypeScript errors / no console errors
+## Build / Compile
+- [ ] TypeScript compile backend + frontend without errors
+- [ ] Run lint/build if available
 
