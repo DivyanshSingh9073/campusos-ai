@@ -52,47 +52,13 @@ const USER_FALLBACK = {
   aiChats: 0,
 };
 
-const TASKS: Task[] = [
-  { id: 1, title: "Submit OS Assignment", due: "Today, 11:59 PM", done: false },
-  { id: 2, title: "DBMS Lab Report", due: "Tomorrow, 9 AM", done: false },
-  { id: 3, title: "DSA Practice — Trees", due: "Wed, 6 PM", done: false },
-  { id: 4, title: "CN Module 3 Notes", due: "Thu, 5 PM", done: true },
-];
 
-const ACTIVITIES: Activity[] = [
-  {
-    id: 1,
-    icon: HiOutlineDocumentText,
-    iconColor: "text-[#6C63FF]",
-    iconBg: "bg-[#6C63FF]/12",
-    text: "Added notes for Data Structures",
-    time: "2 min ago",
-  },
-  {
-    id: 2,
-    icon: HiSparkles,
-    iconColor: "text-amber-400",
-    iconBg: "bg-amber-400/10",
-    text: "AI summarised OS Module 4",
-    time: "1 hr ago",
-  },
-  {
-    id: 3,
-    icon: HiCheckCircle,
-    iconColor: "text-green-400",
-    iconBg: "bg-green-400/10",
-    text: "Marked CN Notes as complete",
-    time: "3 hrs ago",
-  },
-  {
-    id: 4,
-    icon: HiOutlineClipboardList,
-    iconColor: "text-sky-400",
-    iconBg: "bg-sky-400/10",
-    text: "Created assignment: DBMS Lab Report",
-    time: "Yesterday",
-  },
-];
+
+const ACTIVITIES: Activity[] = [];
+
+type TaskWithCreatedAt = Task & { createdAt?: string | null };
+
+
 
 function getInitials(name: string) {
   return name
@@ -207,10 +173,11 @@ function TaskRow({ task, onToggle }: { task: Task; onToggle: (id: number) => voi
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const [tasks, setTasks] = useState<Task[]>(TASKS);
+  const [tasks, setTasks] = useState<TaskWithCreatedAt[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+
 
   useEffect(() => {
     let mounted = true;
@@ -237,14 +204,16 @@ export default function DashboardPage() {
 
       try {
         const res = await api.tasks.list();
-        const mapped: Task[] = res.tasks.map((t: any) => ({
+        const mapped: TaskWithCreatedAt[] = (res.tasks ?? []).map((t: any) => ({
           id: Number(t.id),
-          title: String(t.title),
+          title: String(t.title ?? ""),
           due: String(t.dueDate ?? t.due_date ?? ""),
           done: Boolean(t.completed),
+          createdAt: t.createdAt ?? t.created_at ?? null,
         }));
         if (mounted) setTasks(mapped);
       } catch (e: any) {
+
         const msg = String(e?.message ?? e);
         if (mounted) {
           if (isAuthError(msg)) {
@@ -268,6 +237,7 @@ export default function DashboardPage() {
     const current = tasks.find((t) => t.id === id);
     const nextCompleted = !current?.done;
 
+    // optimistic UI
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: nextCompleted } : t)));
 
     try {
@@ -279,17 +249,24 @@ export default function DashboardPage() {
       if (isAuthError(msg)) {
         clearToken();
         navigate("/", { replace: true });
+        return;
       }
     }
   };
 
+
   const pendingCount = tasks.filter((t) => !t.done).length;
+  const completedCount = tasks.filter((t) => t.done).length;
+  const recentTasks = [...tasks]
+    .sort((a, b) => String((b.createdAt ?? b.created_at) ?? "").localeCompare(String((a.createdAt ?? a.created_at) ?? "")))
+    .slice(0, 4);
 
   const stats = {
-    tasksCompleted: 0,
+    tasksCompleted: completedCount,
     notesCreated: 0,
     aiChats: 0,
   };
+
 
   return (
     <div className="relative min-h-screen bg-[#0A0A0F] px-4 pt-10 pb-[calc(7rem+env(safe-area-inset-bottom))] overflow-x-hidden">
@@ -331,10 +308,11 @@ export default function DashboardPage() {
 
           <div className="mt-4 grid grid-cols-3 gap-2">
             {[
-              { value: stats.tasksCompleted, label: "Tasks done" },
+              { value: pendingCount, label: "Pending" },
+              { value: completedCount, label: "Completed" },
               { value: stats.notesCreated, label: "Notes" },
-              { value: stats.aiChats, label: "AI chats" },
             ].map(({ value, label }) => (
+
               <div
                 key={label}
                 className="rounded-xl bg-white/[0.04] border border-white/[0.05] py-2 text-center"
@@ -403,33 +381,52 @@ export default function DashboardPage() {
         </div>
 
         <div>
-          <SectionHeader title="Recent Activity" action="See all" />
-          <div className="rounded-2xl border border-white/[0.07] bg-[#111118] divide-y divide-white/[0.05] shadow-xl overflow-hidden">
-            {ACTIVITIES.map((a) => (
-              <div key={a.id} className="flex items-start gap-3 px-4 py-3">
-                <span className={`mt-0.5 shrink-0 flex h-8 w-8 items-center justify-center rounded-xl ${a.iconBg}`}>
-                  <a.icon className={`w-4 h-4 ${a.iconColor}`} />
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-[#C4CDD8] leading-snug">{a.text}</p>
-                  <p className="text-xs text-[#3B4558] mt-0.5">{a.time}</p>
-                </div>
+          <SectionHeader title="Recent Tasks" action="" />
+          <div className="rounded-2xl border border-white/[0.07] bg-[#111118] shadow-xl overflow-hidden">
+            {recentTasks.length === 0 ? (
+              <div className="px-4 py-5 text-center">
+                <p className="text-xs text-[#64748B]">No recent tasks</p>
               </div>
-            ))}
+            ) : (
+              <div className="divide-y divide-white/[0.05]">
+                {recentTasks.map((t) => (
+                  <div key={t.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                    <p
+                      className={`text-sm font-medium truncate ${
+                        t.done ? "line-through text-[#3B4558]" : "text-[#E2E8F0]"
+                      }`}
+                    >
+                      {t.title}
+                    </p>
+                    <span className="text-[10px] text-[#64748B]">
+                      {t.due ? t.due : "—"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
+
 
         <div>
           <SectionHeader title="Upcoming Tasks" action="Add task" />
           <div className="rounded-2xl border border-white/[0.07] bg-[#111118] px-4 shadow-xl">
-            {tasks.map((task) => (
-              <TaskRow key={task.id} task={task} onToggle={toggleTask} />
-            ))}
+            {tasks.length === 0 ? (
+              <div className="px-1 py-5">
+                <p className="text-center text-xs text-[#64748B]">No tasks yet</p>
+              </div>
+            ) : (
+              tasks.map((task) => (
+                <TaskRow key={task.id} task={task} onToggle={toggleTask} />
+              ))
+            )}
           </div>
-          {pendingCount === 0 && (
+          {pendingCount === 0 && tasks.length > 0 && (
             <p className="mt-3 text-center text-xs text-green-400 font-medium">🎉 All tasks done!</p>
           )}
         </div>
+
 
         {loading && <div className="text-center text-xs text-[#64748B] pt-2">Loading…</div>}
         {error && !isAuthError(error) && <div className="text-center text-xs text-red-400 pt-2">{error}</div>}
