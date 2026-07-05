@@ -14,6 +14,8 @@ import NotesPage from "./pages/NotesPage";
 import NoteEditorPage from "./pages/NoteEditorPage";
 import AssistantPage from "./pages/AssistantPage";
 import TasksPage from "./pages/TasksPage";
+import StudyPlannerPage from "./pages/StudyPlannerPage";
+
 
 import BottomNav from "./pages/components/BottomNav";
 
@@ -37,7 +39,9 @@ function Layout() {
         <Route path="/" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/study-planner" element={<StudyPlannerPage />} />
         <Route path="/tasks" element={<TasksPage />} />
+
         <Route path="/notes" element={<NotesPage />} />
 
         <Route path="/notes/new" element={<NoteEditorPage />} />

@@ -33,4 +33,19 @@ CREATE INDEX IF NOT EXISTS tasks_user_id_idx ON tasks(user_id);
 CREATE INDEX IF NOT EXISTS tasks_created_at_idx ON tasks(created_at);
 
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Study Planner (Phase 7)
+-- Each user has their own set of study sessions.
+CREATE TABLE IF NOT EXISTS study_planner (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  subject VARCHAR(255) NOT NULL,
+  topic VARCHAR(255) NOT NULL,
+  study_date DATE NOT NULL,
+  completed BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS study_planner_user_id_idx ON study_planner(user_id);
+CREATE INDEX IF NOT EXISTS study_planner_study_date_idx ON study_planner(study_date);
 

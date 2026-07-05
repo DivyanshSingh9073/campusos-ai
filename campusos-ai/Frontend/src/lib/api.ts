@@ -46,7 +46,8 @@ async function request<T>(
     if (token) headers.Authorization = `Bearer ${token}`
   }
 
-  const res = await fetch(`${getApiBaseUrl()}${path.startsWith('/') ? path : `/${path}`}`,
+  const res = await fetch(
+    `${getApiBaseUrl()}${path.startsWith('/') ? path : `/${path}`}`,
     {
       method,
       headers,
@@ -103,10 +104,7 @@ export const api = {
           completed: boolean
           createdAt: string
         }>
-      }>(
-        '/tasks',
-        { method: 'GET' }
-      )
+      }>('/tasks', { method: 'GET' })
     },
 
     create(body: { title: string; description?: string; due_date?: string; completed?: boolean }) {
@@ -119,10 +117,7 @@ export const api = {
           completed: boolean
           createdAt: string
         }
-      }>(
-        '/tasks',
-        { method: 'POST', body }
-      )
+      }>('/tasks', { method: 'POST', body })
     },
 
     update(
@@ -138,15 +133,59 @@ export const api = {
           completed: boolean
           createdAt: string
         }
-      }>(
-        `/tasks/${id}`,
-        { method: 'PUT', body }
-      )
+      }>(`/tasks/${id}`, { method: 'PUT', body })
     },
-
 
     delete(id: number) {
       return request<void>(`/tasks/${id}`, { method: 'DELETE' })
+    },
+  },
+
+  studyPlanner: {
+    list() {
+      return request<{
+        sessions: Array<{
+          id: number
+          subject: string
+          topic: string
+          studyDate: string
+          completed: boolean
+          createdAt: string
+        }>
+      }>('/study-planner', { method: 'GET' })
+    },
+
+    create(body: { subject: string; topic: string; study_date: string; completed?: boolean }) {
+      return request<{
+        session: {
+          id: number
+          subject: string
+          topic: string
+          studyDate: string
+          completed: boolean
+          createdAt: string
+        }
+      }>('/study-planner', { method: 'POST', body })
+    },
+
+    update(
+      id: number,
+      body: { subject?: string; topic?: string; study_date?: string | null; completed?: boolean }
+    ) {
+      return request<{
+        session: {
+          id: number
+          subject: string
+          topic: string
+          studyDate: string
+          completed: boolean
+          createdAt: string
+        }
+      }>(`/study-planner/${id}`, { method: 'PUT', body })
+    },
+
+    delete(id: number) {
+      return request<void>(`/study-planner/${id}`, { method: 'DELETE' })
     },
   },
 
@@ -162,19 +201,15 @@ export const api = {
     },
   },
 
-
   notes: {
     list() {
-      // Backend returns: { notes: [{ id, title, content, updatedAt }] }
       return request<{ notes: Array<{ id: number; title: string; content: string; updatedAt: string | null }> }>(
         '/notes',
         { method: 'GET' }
       )
     },
 
-
     get(id: number) {
-      // Backend returns: { note: { id, title, content, updatedAt } }
       return request<{ note: { id: number; title: string; content: string; updatedAt: string | null } }>(
         `/notes/${id}`,
         { method: 'GET' }
@@ -205,5 +240,4 @@ export const api = {
 export function useApi() {
   return useMemo(() => api, [])
 }
-
 

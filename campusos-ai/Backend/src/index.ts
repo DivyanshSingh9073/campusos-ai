@@ -8,6 +8,8 @@ import { notesRouter } from './routes/notes.routes.js'
 import { tasksRouter } from './routes/tasks.routes.js'
 import { assistantRouter } from './routes/assistant.routes.js'
 import { aiRouter } from './routes/ai.routes.js'
+import { studyPlannerRouter } from './routes/studyPlanner.routes.js'
+
 
 const app = express()
 
@@ -25,6 +27,8 @@ app.use('/api/notes', notesRouter)
 app.use('/api/tasks', tasksRouter)
 app.use('/api/assistant', assistantRouter)
 app.use('/api/ai', aiRouter)
+app.use('/api/study-planner', studyPlannerRouter)
+
 
 app.get('/', (_req: express.Request, res: express.Response) => {
 

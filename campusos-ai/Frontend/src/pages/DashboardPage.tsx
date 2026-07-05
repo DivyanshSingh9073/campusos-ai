@@ -3,7 +3,7 @@ import { api, clearToken } from "../lib/api";
 import { useNavigate } from "react-router-dom";
 
 import {
-  HiSparkles,
+  HiSparkles,                                      
   HiOutlineDocumentText,
   HiOutlineClipboardList,
   HiOutlineAcademicCap,
@@ -178,6 +178,68 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
+  type StudySession = {
+    id: number
+    subject: string
+    topic: string
+    studyDate: string
+    completed: boolean
+    createdAt: string
+  }
+
+  const [studySessions, setStudySessions] = useState<StudySession[]>([])
+  const [studyLoading, setStudyLoading] = useState(false)
+  const [studyError, setStudyError] = useState<string | null>(null)
+
+  const toISODateLocal = (d: Date) => {
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  }
+
+  useEffect(() => { 
+    let mounted = true
+    ;(async () => {
+      setStudyLoading(true)
+      setStudyError(null)
+      try {
+        const res = await api.studyPlanner.list()
+        const mapped: StudySession[] = (res.sessions ?? []).map((s: any) => ({
+          id: Number(s.id),
+          subject: String(s.subject ?? ''),
+          topic: String(s.topic ?? ''),
+          studyDate: String(s.studyDate ?? ''),
+          completed: Boolean(s.completed),
+          createdAt: String(s.createdAt ?? ''),
+        }))
+        if (mounted) setStudySessions(mapped)
+      } catch (e: any) {
+        const msg = String(e?.message ?? e)
+        if (!mounted) return
+        setStudyError(isAuthError(msg) ? null : msg)
+        if (isAuthError(msg)) {
+          clearToken()
+          navigate('/', { replace: true })
+        }
+      } finally {
+        if (mounted) setStudyLoading(false)
+      }
+    })()
+    return () => {
+      mounted = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigate])
+
+  const todayISO = useMemo(() => toISODateLocal(new Date()), [])
+  const todayStudySessions = useMemo(() => studySessions.filter((s) => s.studyDate === todayISO), [studySessions, todayISO])
+  void todayStudySessions
+  const upcomingStudySessions = useMemo(
+    () => studySessions.filter((s) => s.studyDate > todayISO).sort((a, b) => a.studyDate.localeCompare(b.studyDate) || (b.createdAt ?? '').localeCompare(a.createdAt ?? '')),
+    [studySessions, todayISO]
+  )
+  const upcomingStudyCount = useMemo(() => upcomingStudySessions.filter((s) => !s.completed).length, [upcomingStudySessions])
+  const nextStudyDate = useMemo(() => upcomingStudySessions.find((s) => !s.completed)?.studyDate ?? null, [upcomingStudySessions])
+
 
   useEffect(() => {
     let mounted = true;
@@ -260,6 +322,8 @@ export default function DashboardPage() {
   const recentTasks = [...tasks]
     .sort((a, b) => String((b.createdAt ?? b.created_at) ?? "").localeCompare(String((a.createdAt ?? a.created_at) ?? "")))
     .slice(0, 4);
+
+  const nextStudyDateLabel = nextStudyDate ? nextStudyDate : null
 
   const stats = {
     tasksCompleted: completedCount,
@@ -410,6 +474,48 @@ export default function DashboardPage() {
 
 
         <div>
+          <SectionHeader title="Today's Study Sessions" action="" />
+          <div className="rounded-2xl border border-white/[0.07] bg-[#111118] px-4 shadow-xl">
+            {studyLoading ? (
+              <div className="px-1 py-5">
+                <p className="text-center text-xs text-[#64748B]">Loading…</p>
+              </div>
+            ) : todayStudySessions.length === 0 ? (
+              <div className="px-1 py-5">
+                <p className="text-center text-xs text-[#64748B]">No study sessions today</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-white/[0.05]">
+                {todayStudySessions.slice(0, 4).map((s) => (
+                  <div key={s.id} className="px-0 py-3 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className={`text-sm font-medium truncate ${s.completed ? 'line-through text-[#3B4558]' : 'text-[#E2E8F0]'}`}>
+                        {s.subject}
+                      </p>
+                      <p className="text-xs text-[#64748B] mt-1 truncate">{s.topic}</p>
+                    </div>
+                    <span className="text-[10px] text-[#64748B] whitespace-nowrap">{s.completed ? 'Done' : 'Planned'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="rounded-xl bg-white/[0.04] border border-white/[0.05] py-2 text-center">
+              <p className="text-base font-bold text-white">{upcomingStudyCount}</p>
+              <p className="text-[10px] text-[#4B5563] mt-0.5">Upcoming</p>
+            </div>
+            <div className="rounded-xl bg-white/[0.04] border border-white/[0.05] py-2 text-center">
+              <p className="text-base font-bold text-white">{nextStudyDateLabel ? 'Next' : '—'}</p>
+              <p className="text-[10px] text-[#4B5563] mt-0.5">
+                {nextStudyDateLabel ? nextStudyDateLabel : 'All done'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div>
           <SectionHeader title="Upcoming Tasks" action="Add task" />
           <div className="rounded-2xl border border-white/[0.07] bg-[#111118] px-4 shadow-xl">
             {tasks.length === 0 ? (
@@ -431,6 +537,7 @@ export default function DashboardPage() {
         {loading && <div className="text-center text-xs text-[#64748B] pt-2">Loading…</div>}
         {error && !isAuthError(error) && <div className="text-center text-xs text-red-400 pt-2">{error}</div>}
       </div>
+
     </div>
   );
 }
