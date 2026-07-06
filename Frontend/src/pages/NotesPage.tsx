@@ -1,0 +1,229 @@
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { api, clearToken } from '../lib/api'
+
+import {
+  HiOutlinePlus,
+  HiOutlineRefresh,
+  HiOutlineDocumentText,
+  HiOutlineClock,
+} from 'react-icons/hi'
+
+type Note = {
+  id: number
+  title: string
+  content: string
+  updatedAt?: string | null
+}
+
+
+function clampPreview(text: string) {
+  const normalized = (text ?? '').replace(/\s+/g, ' ').trim()
+  if (!normalized) return ''
+  return normalized
+}
+
+function formatRelativeUpdated(isoOrDate?: string | null) {
+  if (!isoOrDate) return 'Updated recently'
+
+  const d = new Date(isoOrDate)
+
+  if (Number.isNaN(d.getTime())) return 'Updated recently'
+
+  const diffMs = Date.now() - d.getTime()
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+  if (diffHours < 1) return `Updated ${Math.max(1, Math.floor(diffMs / (1000 * 60)))} min ago`
+  if (diffHours < 24) return `Updated ${diffHours} hours ago`
+  const diffDays = Math.floor(diffHours / 24)
+  return `Updated ${diffDays} days ago`
+}
+
+function SkeletonCard() {
+  return (
+    <div className="rounded-2xl border border-white/[0.07] bg-[#111118] p-4 shadow-xl overflow-hidden">
+      <div className="h-4 w-3/4 rounded bg-white/10 animate-pulse" />
+      <div className="mt-3 h-3 w-1/2 rounded bg-white/8 animate-pulse" />
+      <div className="mt-4 space-y-2">
+        <div className="h-3 w-full rounded bg-white/8 animate-pulse" />
+        <div className="h-3 w-11/12 rounded bg-white/8 animate-pulse" />
+        <div className="h-3 w-9/12 rounded bg-white/8 animate-pulse" />
+      </div>
+    </div>
+  )
+}
+
+function NoteCard({ note, onOpen }: { note: Note; onOpen: (id: number) => void }) {
+  const preview = useMemo(() => {
+    return clampPreview(note.content).slice(0, 120)
+  }, [note.content])
+
+
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(note.id)}
+      className="text-left rounded-2xl border border-white/[0.07] bg-[#111118] p-4 shadow-xl transition-all hover:border-white/[0.12] hover:bg-[#16161F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF] overflow-hidden w-full"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <HiOutlineDocumentText className="w-4 h-4 text-[#6C63FF] shrink-0" />
+            <h3 className="text-sm font-semibold text-white truncate">{note.title}</h3>
+          </div>
+
+          <div className="mt-2 flex items-center gap-1 text-xs text-[#94A3B8]">
+            <HiOutlineClock className="w-3.5 h-3.5" />
+            <span>{formatRelativeUpdated(null)}</span>
+          </div>
+        </div>
+      </div>
+
+      <p className="mt-3 text-xs text-[#94A3B8] leading-snug line-clamp-3">
+        {preview || 'No preview available'}
+      </p>
+
+      {/* Subtle accent */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none mt-3 h-px w-full"
+        style={{ background: 'linear-gradient(90deg, rgba(108,99,255,0.0), rgba(108,99,255,0.35), rgba(108,99,255,0.0))' }}
+      />
+    </button>
+  )
+}
+
+export default function NotesPage() {
+  const navigate = useNavigate()
+
+  const [notes, setNotes] = useState<Note[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchNotes = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await api.notes.list()
+      const mapped: Note[] = (res.notes ?? []).map((n: any) => ({
+        id: Number(n.id),
+        title: String(n.title ?? ''),
+        content: String(n.content ?? ''),
+        updatedAt: (n.updatedAt ?? n.updated_at ?? null) as string | null,
+      }))
+      setNotes(mapped)
+
+    } catch (e: any) {
+      const msg = String(e?.message ?? e)
+      setError(msg)
+
+      // If token is invalid, redirect to login.
+      const m = msg.toLowerCase()
+      if (m.includes('token') || m.includes('authorization') || m.includes('unauthorized') || msg.includes('401')) {
+        clearToken()
+        navigate('/', { replace: true })
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchNotes()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const onOpenNote = (id: number) => {
+    // Editor will be implemented next step.
+    // For now navigate to the intended editor route.
+    navigate(`/notes/${id}`)
+  }
+
+  const onCreateNote = () => {
+    // Next step will implement editor for creating.
+    navigate('/notes/new')
+  }
+
+  return (
+    <div className="relative min-h-screen bg-[#0A0A0F] px-4 pt-10 pb-[calc(7rem+env(safe-area-inset-bottom))] overflow-x-hidden">
+      {/* Ambient orb */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute top-[-110px] left-1/2 -translate-x-1/2 w-[480px] h-[340px] rounded-full"
+        style={{
+          background: 'radial-gradient(ellipse at 50% 0%, rgba(108,99,255,0.16) 0%, transparent 70%)',
+          filter: 'blur(40px)',
+        }}
+      />
+
+      <div className="relative mx-auto max-w-sm space-y-5">
+        {/* Header */}
+        <div>
+          <h1 className="text-xl font-bold text-white" style={{ letterSpacing: '-0.03em' }}>
+            Notes
+          </h1>
+          <p className="mt-1 text-sm text-[#64748B]">Your saved DBMS study notes.</p>
+        </div>
+
+        {/* Content */}
+        {loading ? (
+          <div className="space-y-3">
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </div>
+        ) : error ? (
+          <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 shadow-xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-red-200">Couldn’t load notes</p>
+                <p className="mt-1 text-xs text-red-200/80">{error}</p>
+              </div>
+              <div className="mt-1">
+                <button
+                  type="button"
+                  onClick={fetchNotes}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#6C63FF] px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-[#6C63FF]/20 hover:bg-[#7C6FFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF]"
+                >
+                  <HiOutlineRefresh className="w-4 h-4" /> Retry
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : notes.length === 0 ? (
+          <div className="rounded-2xl border border-white/[0.07] bg-[#111118] p-5 text-center shadow-xl">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#6C63FF]/12 ring-1 ring-[#6C63FF]/20">
+              <HiOutlineDocumentText className="w-5 h-5 text-[#6C63FF]" />
+            </div>
+            <p className="mt-4 text-sm font-semibold text-white">📝 No notes yet</p>
+            <p className="mt-2 text-xs text-[#64748B]">Create your first note to get started.</p>
+
+            <button
+              type="button"
+              onClick={onCreateNote}
+              className="mt-4 inline-flex items-center gap-2 rounded-xl border border-[#6C63FF]/30 bg-[#6C63FF]/10 px-4 py-2 text-xs font-semibold text-[#A5A0FF] hover:bg-[#6C63FF]/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF]"
+            >
+              <span className="text-[#6C63FF]">[ + Create Note ]</span>
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {notes.map((note) => (
+              <NoteCard key={note.id} note={note} onOpen={onOpenNote} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Floating action button */}
+      <button
+        type="button"
+        aria-label="New note"
+        onClick={onCreateNote}
+        className="fixed right-4 bottom-[calc(88px+env(safe-area-inset-bottom))] z-50 h-14 w-14 rounded-2xl bg-[#6C63FF] shadow-lg shadow-[#6C63FF]/25 flex items-center justify-center hover:bg-[#7C6FFF] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF]"
+      >
+        <HiOutlinePlus className="w-6 h-6 text-white" />
+      </button>
+    </div>
+  )
+}
+
