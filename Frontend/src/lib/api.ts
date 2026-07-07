@@ -1,6 +1,21 @@
 import { useMemo } from 'react'
+import { emitAuthEvent } from './authEvents'
 
 export type ApiError = { error?: string; message?: string }
+
+// A request failure that carries the real HTTP status code, so callers can
+// branch on `error.status` instead of guessing from `error.message` text.
+export class ApiRequestError extends Error {
+  status: number
+  payload?: ApiError
+
+  constructor(status: number, message: string, payload?: ApiError) {
+    super(message)
+    this.name = 'ApiRequestError'
+    this.status = status
+    this.payload = payload
+  }
+}
 
 // ─── Token storage ────────────────────────────────────────────────────────────
 
@@ -63,7 +78,21 @@ async function request<T>(
   if (!res.ok) {
     const payload = data as ApiError
     const message = payload?.error || payload?.message || `Request failed: ${res.status}`
-    throw new Error(message)
+
+    // Only requests that were actually sent with a token can mean "your
+    // session is invalid" — an 401 from an unauthenticated call (e.g. a
+    // wrong password on /auth/login) is just a normal form error and must
+    // not clear tokens or redirect anyone.
+    if (auth && res.status === 401) {
+      clearToken()
+      emitAuthEvent({ type: 'unauthorized', message })
+    } else if (auth && res.status === 403) {
+      emitAuthEvent({ type: 'forbidden', message })
+    } else if (res.status >= 500) {
+      emitAuthEvent({ type: 'server-error', message })
+    }
+
+    throw new ApiRequestError(res.status, message, payload)
   }
 
   return data as T

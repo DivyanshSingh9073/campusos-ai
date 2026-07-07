@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, clearToken } from '../lib/api'
+import { api, ApiRequestError } from '../lib/api'
 
 import {
   HiOutlinePlus,
@@ -112,16 +112,13 @@ export default function NotesPage() {
       }))
       setNotes(mapped)
 
-    } catch (e: any) {
-      const msg = String(e?.message ?? e)
-      setError(msg)
+    } catch (e: unknown) {
+      // A 401 means api.ts already cleared the token and the global
+      // AuthEventHandler (see App.tsx) is already redirecting to Login —
+      // skip showing an inline error while that happens.
+      if (e instanceof ApiRequestError && e.status === 401) return
 
-      // If token is invalid, redirect to login.
-      const m = msg.toLowerCase()
-      if (m.includes('token') || m.includes('authorization') || m.includes('unauthorized') || msg.includes('401')) {
-        clearToken()
-        navigate('/', { replace: true })
-      }
+      setError(e instanceof Error ? e.message : String(e))
     } finally {
       setLoading(false)
     }

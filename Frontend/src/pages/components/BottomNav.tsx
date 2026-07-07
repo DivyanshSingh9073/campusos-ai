@@ -25,9 +25,9 @@ interface Tab {
 
 const TABS: Tab[] = [
   { id: 'home',    label: 'Home',    path: '/dashboard', Icon: HiOutlineHome,          ActiveIcon: HiHome          },
-  { id: 'notes',   label: 'Notes',   path: '/dashboard', Icon: HiOutlineDocumentText,  ActiveIcon: HiDocumentText  },
-  { id: 'tasks',   label: 'Tasks',   path: '/dashboard', Icon: HiOutlineClipboardList, ActiveIcon: HiClipboardList },
-  { id: 'ai',      label: 'AI',      path: '/dashboard', Icon: HiSparkles,             ActiveIcon: HiSparkles      },
+  { id: 'notes',   label: 'Notes',   path: '/notes',     Icon: HiOutlineDocumentText,  ActiveIcon: HiDocumentText  },
+  { id: 'tasks',   label: 'Tasks',   path: '/tasks',     Icon: HiOutlineClipboardList, ActiveIcon: HiClipboardList },
+  { id: 'ai',      label: 'AI',      path: '/ai',        Icon: HiSparkles,             ActiveIcon: HiSparkles      },
   { id: 'profile', label: 'Profile', path: '/profile',   Icon: HiOutlineUser,          ActiveIcon: HiUser          },
 ]
 
@@ -37,13 +37,19 @@ export default function BottomNav() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
 
-  // Derive active tab from current path
-  const getActiveId = (): TabId => {
-    if (pathname === '/profile') return 'profile'
+  // Derive the active tab from the current path. Prefix-matched (rather than
+  // an exact-match list) so any future sub-route under a section — e.g.
+  // /notes/new, /notes/:id — still highlights the right tab. /dashboard and
+  // /activity (a Dashboard sub-view with no tab of its own) fall back to Home.
+  const getActiveId = (pathname: string): TabId => {
+    if (pathname.startsWith('/notes')) return 'notes'
+    if (pathname.startsWith('/tasks')) return 'tasks'
+    if (pathname.startsWith('/ai')) return 'ai'
+    if (pathname.startsWith('/profile')) return 'profile'
     return 'home'
   }
 
-  const activeId = getActiveId()
+  const activeId = getActiveId(pathname)
 
   return (
     <nav aria-label="Main navigation" className="fixed bottom-0 inset-x-0 z-50">

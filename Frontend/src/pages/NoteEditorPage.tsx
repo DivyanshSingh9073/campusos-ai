@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { api, clearToken } from '../lib/api'
+import { api, ApiRequestError } from '../lib/api'
 import {
   HiOutlineArrowLeft,
   HiOutlinePlus,
@@ -18,11 +18,6 @@ type Note = {
 function clampContentPreview(text: string) {
   const normalized = (text ?? '').replace(/\s+/g, ' ').trim()
   return normalized
-}
-
-function isAuthErrorMessage(message: string) {
-  const m = message.toLowerCase()
-  return m.includes('token') || m.includes('authorization') || m.includes('unauthorized') || m.includes('401')
 }
 
 function Toast({
@@ -85,15 +80,12 @@ export default function NoteEditorPage() {
         const n = res.note as any
         setTitle(String(n.title ?? ''))
         setContent(String(n.content ?? ''))
-      } catch (e: any) {
-        const msg = String(e?.message ?? e)
+      } catch (e: unknown) {
         if (!mounted) return
-        if (isAuthErrorMessage(msg)) {
-          clearToken()
-          navigate('/', { replace: true })
-          return
-        }
-        setFetchError(msg)
+        // A 401 means api.ts already cleared the token and the global
+        // AuthEventHandler is already redirecting to Login.
+        if (e instanceof ApiRequestError && e.status === 401) return
+        setFetchError(e instanceof Error ? e.message : String(e))
       } finally {
         if (mounted) setLoading(false)
       }
@@ -150,13 +142,12 @@ export default function NoteEditorPage() {
 
       setToast({ kind: 'success', text: 'Note saved' })
       navigate('/notes', { replace: true })
-    } catch (e: any) {
-      const msg = String(e?.message ?? e)
-      if (isAuthErrorMessage(msg)) {
-        clearToken()
-        navigate('/', { replace: true })
-        return
-      }
+    } catch (e: unknown) {
+      // A 401 means api.ts already cleared the token and the global
+      // AuthEventHandler is already redirecting to Login.
+      if (e instanceof ApiRequestError && e.status === 401) return
+
+      const msg = e instanceof Error ? e.message : String(e)
       setSaveError(msg)
       setToast({ kind: 'error', text: 'Couldn’t save note' })
     } finally {
@@ -171,13 +162,12 @@ export default function NoteEditorPage() {
       await api.notes.delete(noteId)
       setToast({ kind: 'success', text: 'Note deleted' })
       navigate('/notes', { replace: true })
-    } catch (e: any) {
-      const msg = String(e?.message ?? e)
-      if (isAuthErrorMessage(msg)) {
-        clearToken()
-        navigate('/', { replace: true })
-        return
-      }
+    } catch (e: unknown) {
+      // A 401 means api.ts already cleared the token and the global
+      // AuthEventHandler is already redirecting to Login.
+      if (e instanceof ApiRequestError && e.status === 401) return
+
+      const msg = e instanceof Error ? e.message : String(e)
       setToast({ kind: 'error', text: msg || 'Couldn’t delete note' })
     }
   }

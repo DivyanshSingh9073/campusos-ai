@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { api, clearToken } from "../lib/api";
 import { useNavigate } from "react-router-dom";
+import { api, ApiRequestError } from "../lib/api";
+import { ACTIVITIES } from "../data/activity";
 
 
 
@@ -37,16 +38,6 @@ interface Task {
   done: boolean;
 }
 
-
-interface Activity {
-  id: number;
-  icon: React.ElementType;
-  iconColor: string;
-  iconBg: string;
-  text: string;
-  time: string;
-}
-
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
 const USER_FALLBACK = {
@@ -67,14 +58,6 @@ const TASKS: Task[] = [
 ];
 
 
-const ACTIVITIES: Activity[] = [
-  { id: 1, icon: HiOutlineDocumentText, iconColor: "text-[#6C63FF]", iconBg: "bg-[#6C63FF]/12", text: "Added notes for Data Structures",     time: "2 min ago"  },
-  { id: 2, icon: HiSparkles,            iconColor: "text-amber-400", iconBg: "bg-amber-400/10", text: "AI summarised OS Module 4",            time: "1 hr ago"   },
-  { id: 3, icon: HiCheckCircle,         iconColor: "text-green-400", iconBg: "bg-green-400/10", text: "Marked CN Notes as complete",          time: "3 hrs ago"  },
-  { id: 4, icon: HiOutlineClipboardList,iconColor: "text-sky-400",   iconBg: "bg-sky-400/10",   text: "Created assignment: DBMS Lab Report",  time: "Yesterday"  },
-];
-
-
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -89,21 +72,24 @@ function getGreeting() {
   return "Good evening";
 }
 
-/** True if an error message looks like an auth failure (expired/invalid/missing token). */
-function isAuthError(message: string): boolean {
-  const m = message.toLowerCase();
-  return m.includes("token") || m.includes("authorization") || m.includes("unauthorized") || m.includes("401");
-}
-
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function SectionHeader({ title, action }: { title: string; action?: string }) {
+function SectionHeader({
+  title,
+  action,
+  onAction,
+}: {
+  title: string;
+  action?: string;
+  onAction?: () => void;
+}) {
   return (
     <div className="flex items-center justify-between mb-3">
       <h2 className="text-sm font-semibold text-[#94A3B8] uppercase tracking-widest">{title}</h2>
       {action && (
         <button
           type="button"
+          onClick={onAction}
           className="flex items-center gap-0.5 text-xs text-[#6C63FF] hover:text-[#A5A0FF] transition-colors focus-visible:outline-none focus-visible:underline"
         >
           {action} <HiOutlineChevronRight className="w-3 h-3" />
@@ -119,16 +105,19 @@ function QuickActionCard({
   sub,
   accent,
   glow,
+  onClick,
 }: {
   icon: React.ElementType;
   label: string;
   sub: string;
   accent: string;
   glow: string;
+  onClick?: () => void;
 }) {
   return (
     <button
       type="button"
+      onClick={onClick}
       className="group relative flex flex-col items-start gap-3 rounded-2xl border border-white/[0.07] bg-[#111118] p-4 text-left shadow-lg transition-all hover:border-white/[0.12] hover:bg-[#16161F] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF] overflow-hidden"
     >
       {/* Hover glow */}
@@ -207,8 +196,10 @@ export default function DashboardPage() {
             ...(p.user.stats ?? {}),
           }));
         }
-      } catch (e: any) {
-        // If token is invalid, existing tasks call will surface 401 and handle redirect.
+      } catch {
+        // Non-fatal here: if the token is actually invalid, the tasks call
+        // right below will get the 401 and the global AuthEventHandler
+        // (see App.tsx) will clear the token and redirect to Login.
       }
     
       try {
@@ -223,9 +214,12 @@ export default function DashboardPage() {
         }));
 
         if (mounted) setTasks(mapped);
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (!mounted) return;
-        setError(String(e?.message ?? e));
+        // 401s are handled centrally (token cleared + redirect in flight);
+        // avoid flashing an inline error while that happens.
+        if (e instanceof ApiRequestError && e.status === 401) return;
+        setError(e instanceof Error ? e.message : String(e));
       } finally {
         if (mounted) setLoading(false);
       }
@@ -242,13 +236,12 @@ export default function DashboardPage() {
 
     try {
       await api.tasks.update(id, { completed: nextCompleted });
-    } catch (e: any) {
-      // revert on failure
+    } catch (e: unknown) {
+      // revert the optimistic update on failure
       setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: !nextCompleted } : t)));
-      if (String(e?.message ?? '').toLowerCase().includes('token') || String(e?.message ?? '').includes('Authorization')) {
-        clearToken();
-        navigate('/', { replace: true });
-      }
+      // If it was a 401, api.ts already cleared the token and the global
+      // AuthEventHandler is already redirecting to Login — nothing else to do.
+      void e;
     }
   };
 
@@ -356,6 +349,7 @@ export default function DashboardPage() {
               sub={`${stats.notesCreated} notes saved`}
               accent="#6C63FF"
               glow="radial-gradient(ellipse at top left, rgba(108,99,255,0.12), transparent 70%)"
+              onClick={() => navigate("/notes")}
             />
             <QuickActionCard
               icon={HiOutlineClipboardList}
@@ -363,6 +357,7 @@ export default function DashboardPage() {
               sub={`${pendingCount} pending`}
               accent="#F59E0B"
               glow="radial-gradient(ellipse at top left, rgba(245,158,11,0.10), transparent 70%)"
+              onClick={() => navigate("/tasks")}
             />
             <div className="col-span-2">
               <QuickActionCard
@@ -371,6 +366,7 @@ export default function DashboardPage() {
                 sub="Ask anything — summaries, explanations, quizzes"
                 accent="#A78BFA"
                 glow="radial-gradient(ellipse at top left, rgba(167,139,250,0.12), transparent 70%)"
+                onClick={() => navigate("/ai")}
               />
             </div>
           </div>
@@ -378,7 +374,7 @@ export default function DashboardPage() {
 
         {/* ── 4. Recent activity ──────────────────────────────────────────── */}
         <div>
-          <SectionHeader title="Recent Activity" action="See all" />
+          <SectionHeader title="Recent Activity" action="See all" onAction={() => navigate("/activity")} />
           <div className="rounded-2xl border border-white/[0.07] bg-[#111118] divide-y divide-white/[0.05] shadow-xl overflow-hidden">
             {ACTIVITIES.map((a) => (
               <div key={a.id} className="flex items-start gap-3 px-4 py-3">
@@ -396,7 +392,7 @@ export default function DashboardPage() {
 
         {/* ── 5. Upcoming tasks ───────────────────────────────────────────── */}
         <div>
-          <SectionHeader title="Upcoming Tasks" action="Add task" />
+          <SectionHeader title="Upcoming Tasks" action="Add task" onAction={() => navigate("/tasks")} />
           <div className="rounded-2xl border border-white/[0.07] bg-[#111118] px-4 shadow-xl">
             {tasks.map((task) => (
               <TaskRow key={task.id} task={task} onToggle={toggleTask} />

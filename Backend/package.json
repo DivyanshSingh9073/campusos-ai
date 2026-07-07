@@ -8,7 +8,7 @@
     "start": "node dist/index.js",
     "build": "tsc -p tsconfig.json",
     "lint": "eslint .",
-    "db:setup": "psql $DATABASE_URL -f src/db/schema.sql"
+    "db:setup": "dotenv -e .env -- psql \"$DATABASE_URL\" -f src/db/schema.sql"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
@@ -26,9 +26,9 @@
     "@types/jsonwebtoken": "^9.0.6",
     "@types/node": "^22.10.1",
     "@types/pg": "^8.11.10",
+    "dotenv-cli": "^8.0.0",
     "eslint": "^9.16.0",
     "tsx": "^4.19.1",
     "typescript": "^5.6.3"
   }
 }
-

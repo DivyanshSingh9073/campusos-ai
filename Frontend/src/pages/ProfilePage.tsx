@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, clearToken } from "../lib/api";
+import { api, clearToken, ApiRequestError } from "../lib/api";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -62,12 +62,6 @@ function getInitials(name: string) {
     .map((n) => n[0])
     .join("")
     .toUpperCase();
-}
-
-/** True if an error message looks like an auth failure (expired/invalid/missing token). */
-function isAuthError(message: string): boolean {
-  const m = message.toLowerCase();
-  return m.includes("token") || m.includes("authorization") || m.includes("unauthorized") || m.includes("401");
 }
 
 // ─── Stat card ────────────────────────────────────────────────────────────────
@@ -167,6 +161,8 @@ export default function ProfilePage() {
 
   const handleLogout = () => {
     setShowLogout(false);
+    clearToken();
+    setProfile(null);
     navigate("/", { replace: true });
   };
 
@@ -180,20 +176,15 @@ export default function ProfilePage() {
         if (!mounted) return;
         setProfile(res.user);
       } catch (e: unknown) {
-
-        const message =
-          e instanceof Error
-            ? e.message
-            : "Unknown error";
-
-        // Invalid/expired/missing token — send the user back to login.
-        // Never fall back to showing stale or another user's profile.
-        if (isAuthError(message)) {
-          clearToken();
-          navigate("/", { replace: true });
+        // A 401 here means api.ts already cleared the token and emitted an
+        // 'unauthorized' event — AuthEventHandler (mounted in App.tsx) is
+        // already redirecting to Login. Skip setting a local error so the
+        // page doesn't flash "Something went wrong" mid-redirect.
+        if (e instanceof ApiRequestError && e.status === 401) {
           return;
         }
 
+        const message = e instanceof Error ? e.message : "Unknown error";
         setError(message);
       } finally {
         if (mounted) setLoading(false);
@@ -202,7 +193,7 @@ export default function ProfilePage() {
     return () => {
       mounted = false;
     };
-  }, [navigate]);
+  }, []);
 
 
   if (loading) {
@@ -222,9 +213,7 @@ export default function ProfilePage() {
             <HiOutlineLogout className="w-7 h-7 text-[#64748B]" />
           </div>
           <p className="text-white font-semibold text-lg mb-1">Something went wrong</p>
-          <p className="text-sm text-[#4B5563]">
-            {isAuthError(error) ? 'Your session expired. Please sign in again.' : 'Could not load your profile.'}
-          </p>
+          <p className="text-sm text-[#4B5563]">Could not load your profile.</p>
 
         </div>
       </div>
