@@ -15,13 +15,14 @@ import NoteEditorPage from "./pages/NoteEditorPage";
 import TasksPage from "./pages/TasksPage";
 import AiAssistantPage from "./pages/AiAssistantPage";
 import ActivityPage from "./pages/ActivityPage";
+import NotificationsPage from "./pages/NotificationsPage";
 import BottomNav from "./pages/components/BottomNav";
 import RequireAuth from "./pages/components/RequireAuth";
 import AuthEventHandler from "./pages/components/AuthEventHandler";
 
 
 
-const NAV_ROUTES = ["/dashboard", "/notes", "/tasks", "/ai", "/profile", "/activity"];
+const NAV_ROUTES = ["/dashboard", "/notes", "/tasks", "/ai", "/profile", "/activity", "/notifications"];
 
 function Layout() {
   const { pathname } = useLocation();
@@ -89,6 +90,14 @@ function Layout() {
           element={
             <RequireAuth>
               <ActivityPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <RequireAuth>
+              <NotificationsPage />
             </RequireAuth>
           }
         />

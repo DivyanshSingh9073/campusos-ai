@@ -18,3 +18,6 @@ export async function query<T = any>(text: string, params: unknown[] = []): Prom
   const res = await pool.query(text, params)
   return res.rows as T[]
 }
+
+
+

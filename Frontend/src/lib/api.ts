@@ -3,6 +3,17 @@ import { emitAuthEvent } from './authEvents'
 
 export type ApiError = { error?: string; message?: string }
 
+export type NotificationType = 'task' | 'note' | 'ai' | 'general'
+
+export interface NotificationItem {
+  id: number
+  type: NotificationType
+  title: string
+  message: string | null
+  read: boolean
+  createdAt: string
+}
+
 // A request failure that carries the real HTTP status code, so callers can
 // branch on `error.status` instead of guessing from `error.message` text.
 export class ApiRequestError extends Error {
@@ -181,6 +192,31 @@ export const api = {
 
     delete(id: number) {
       return request<void>(`/notes/${id}`, { method: 'DELETE' })
+    },
+  },
+
+  notifications: {
+    list(limit?: number) {
+      return request<{ notifications: NotificationItem[] }>(
+        `/notifications${limit ? `?limit=${limit}` : ''}`,
+        { method: 'GET' }
+      )
+    },
+
+    unreadCount() {
+      return request<{ count: number }>('/notifications/unread-count', { method: 'GET' })
+    },
+
+    markRead(id: number) {
+      return request<{ notification: NotificationItem }>(`/notifications/${id}/read`, { method: 'PATCH' })
+    },
+
+    markAllRead() {
+      return request<{ updated: number }>('/notifications/read-all', { method: 'PATCH' })
+    },
+
+    delete(id: number) {
+      return request<void>(`/notifications/${id}`, { method: 'DELETE' })
     },
   },
 }

@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { query } from '../db/index.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
+import { createNotification } from '../lib/notifications.js'
 
 export const notesRouter = Router()
 
@@ -45,6 +46,8 @@ notesRouter.post('/', async (req: AuthedRequest, res) => {
     'INSERT INTO notes (title, content, user_id) VALUES ($1, $2, $3) RETURNING id, title, content, updated_at AS updatedAt',
     [trimmedTitle, trimmedContent, userId]
   )
+
+  await createNotification(userId, 'note', 'New note created', `"${rows[0].title}" was saved to your notes.`)
 
   return res.status(201).json({ note: rows[0] })
 })

@@ -6,6 +6,7 @@ import { config } from './config.js'
 import { authRouter } from './routes/auth.routes.js'
 import { notesRouter } from './routes/notes.routes.js'
 import { tasksRouter } from './routes/tasks.routes.js'
+import { notificationsRouter } from './routes/notifications.routes.js'
 
 const app = express()
 
@@ -20,6 +21,7 @@ app.get('/health', (_req: express.Request, res: express.Response) => {
 app.use('/api/auth', authRouter)
 app.use('/api/notes', notesRouter)
 app.use('/api/tasks', tasksRouter)
+app.use('/api/notifications', notificationsRouter)
 
 app.get('/', (_req: express.Request, res: express.Response) => {
   res.json({

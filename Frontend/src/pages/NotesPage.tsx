@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, ApiRequestError } from '../lib/api'
+import { formatRelativeTime } from '../lib/formatRelativeTime'
 
 import {
   HiOutlinePlus,
@@ -21,21 +22,6 @@ function clampPreview(text: string) {
   const normalized = (text ?? '').replace(/\s+/g, ' ').trim()
   if (!normalized) return ''
   return normalized
-}
-
-function formatRelativeUpdated(isoOrDate?: string | null) {
-  if (!isoOrDate) return 'Updated recently'
-
-  const d = new Date(isoOrDate)
-
-  if (Number.isNaN(d.getTime())) return 'Updated recently'
-
-  const diffMs = Date.now() - d.getTime()
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-  if (diffHours < 1) return `Updated ${Math.max(1, Math.floor(diffMs / (1000 * 60)))} min ago`
-  if (diffHours < 24) return `Updated ${diffHours} hours ago`
-  const diffDays = Math.floor(diffHours / 24)
-  return `Updated ${diffDays} days ago`
 }
 
 function SkeletonCard() {
@@ -73,7 +59,7 @@ function NoteCard({ note, onOpen }: { note: Note; onOpen: (id: number) => void }
 
           <div className="mt-2 flex items-center gap-1 text-xs text-[#94A3B8]">
             <HiOutlineClock className="w-3.5 h-3.5" />
-            <span>{formatRelativeUpdated(null)}</span>
+            <span>Updated {formatRelativeTime(note.updatedAt)}</span>
           </div>
         </div>
       </div>

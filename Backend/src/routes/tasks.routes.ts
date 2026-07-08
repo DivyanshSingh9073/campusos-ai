@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { query } from '../db/index.js'
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js'
+import { createNotification } from '../lib/notifications.js'
 
 export const tasksRouter = Router()
 
@@ -31,6 +32,8 @@ tasksRouter.post('/', async (req: AuthedRequest, res) => {
     [title.trim(), due, typeof completed === 'boolean' ? completed : false, userId]
   )
 
+  await createNotification(userId, 'task', 'New task added', `"${rows[0].title}" was added to your tasks.`)
+
   return res.status(201).json({ task: rows[0] })
 })
 
@@ -56,6 +59,11 @@ tasksRouter.put('/:id', async (req: AuthedRequest, res) => {
   )
 
   if (!rows[0]) return res.status(404).json({ error: 'task not found' })
+
+  if (completed === true) {
+    await createNotification(userId, 'task', 'Task completed', `You completed "${rows[0].title}".`)
+  }
+
   return res.json({ task: rows[0] })
 })
 

@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, ApiRequestError } from "../lib/api";
+import { api, ApiRequestError, type NotificationItem } from "../lib/api";
 import { ACTIVITIES } from "../data/activity";
+import { formatRelativeTime } from "../lib/formatRelativeTime";
+import NotificationBell from "./components/NotificationBell";
+import { SkeletonRow } from "./components/Skeleton";
 
 
 
@@ -18,6 +21,7 @@ import {
   HiOutlineFire,
   HiCheckCircle,
   HiOutlineBookOpen,
+  HiOutlineBell,
 } from "react-icons/hi";
 
 interface UserProfile {
@@ -182,6 +186,9 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState(USER_FALLBACK);
+  const [notesCount, setNotesCount] = useState<number | null>(null);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
@@ -222,6 +229,25 @@ export default function DashboardPage() {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
         if (mounted) setLoading(false);
+      }
+
+      // 3) Real notes count for the stats card — the backend never actually
+      // populates profile.stats, so this was always hardcoded to 0 before.
+      try {
+        const notesRes = await api.notes.list();
+        if (mounted) setNotesCount(notesRes.notes.length);
+      } catch {
+        // Non-fatal — stats card just falls back to showing 0.
+      }
+
+      // 4) Recent notifications preview for the dashboard card.
+      try {
+        const notifRes = await api.notifications.list(3);
+        if (mounted) setNotifications(notifRes.notifications);
+      } catch {
+        // Non-fatal — section just renders its empty state.
+      } finally {
+        if (mounted) setNotificationsLoading(false);
       }
     })();
     return () => {
@@ -264,6 +290,11 @@ export default function DashboardPage() {
 
       <div className="relative mx-auto max-w-sm space-y-5">
 
+        {/* ── 0. Top bar ──────────────────────────────────────────────────── */}
+        <div className="flex items-center justify-end">
+          <NotificationBell />
+        </div>
+
         {/* ── 1. Welcome card ─────────────────────────────────────────────── */}
         <div className="rounded-2xl border border-white/[0.07] bg-[#111118] px-5 py-5 shadow-xl overflow-hidden relative">
           {/* Inner accent line */}
@@ -299,9 +330,9 @@ export default function DashboardPage() {
           {/* Mini stats */}
           <div className="mt-4 grid grid-cols-3 gap-2">
             {[
-              { value: stats.tasksCompleted, label: "Tasks done" },
-              { value: stats.notesCreated,   label: "Notes" },
-              { value: stats.aiChats,        label: "AI chats" },
+              { value: tasks.filter((t) => t.done).length, label: "Tasks done" },
+              { value: notesCount ?? 0,                     label: "Notes" },
+              { value: stats.aiChats,                       label: "AI chats" },
             ].map(({ value, label }) => (
               <div
                 key={label}
@@ -346,7 +377,7 @@ export default function DashboardPage() {
             <QuickActionCard
               icon={HiOutlineDocumentText}
               label="Notes"
-              sub={`${stats.notesCreated} notes saved`}
+              sub={`${notesCount ?? 0} notes saved`}
               accent="#6C63FF"
               glow="radial-gradient(ellipse at top left, rgba(108,99,255,0.12), transparent 70%)"
               onClick={() => navigate("/notes")}
@@ -372,7 +403,41 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ── 4. Recent activity ──────────────────────────────────────────── */}
+        {/* ── 4. Recent notifications ─────────────────────────────────────── */}
+        <div>
+          <SectionHeader title="Recent Notifications" action="See all" onAction={() => navigate("/notifications")} />
+          {notificationsLoading ? (
+            <div className="rounded-2xl border border-white/[0.07] bg-[#111118] divide-y divide-white/[0.05] shadow-xl overflow-hidden">
+              <SkeletonRow />
+              <SkeletonRow />
+              <SkeletonRow />
+            </div>
+          ) : notifications.length === 0 ? (
+            <div className="rounded-2xl border border-white/[0.07] bg-[#111118] px-4 py-6 text-center shadow-xl">
+              <p className="text-xs text-[#64748B]">No notifications yet</p>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-white/[0.07] bg-[#111118] divide-y divide-white/[0.05] shadow-xl overflow-hidden">
+              {notifications.map((n) => (
+                <div key={n.id} className="flex items-start gap-3 px-4 py-3">
+                  <span
+                    className={`mt-0.5 shrink-0 flex h-8 w-8 items-center justify-center rounded-xl ${
+                      !n.read ? "bg-[#6C63FF]/12" : "bg-white/[0.04]"
+                    }`}
+                  >
+                    <HiOutlineBell className={`w-4 h-4 ${!n.read ? "text-[#6C63FF]" : "text-[#64748B]"}`} />
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-[#C4CDD8] leading-snug">{n.title}</p>
+                    <p className="text-xs text-[#3B4558] mt-0.5">{formatRelativeTime(n.createdAt)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── 5. Recent activity ──────────────────────────────────────────── */}
         <div>
           <SectionHeader title="Recent Activity" action="See all" onAction={() => navigate("/activity")} />
           <div className="rounded-2xl border border-white/[0.07] bg-[#111118] divide-y divide-white/[0.05] shadow-xl overflow-hidden">
@@ -390,7 +455,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ── 5. Upcoming tasks ───────────────────────────────────────────── */}
+        {/* ── 6. Upcoming tasks ───────────────────────────────────────────── */}
         <div>
           <SectionHeader title="Upcoming Tasks" action="Add task" onAction={() => navigate("/tasks")} />
           <div className="rounded-2xl border border-white/[0.07] bg-[#111118] px-4 shadow-xl">

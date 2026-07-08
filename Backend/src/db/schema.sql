@@ -27,3 +27,17 @@ CREATE TABLE IF NOT EXISTS tasks (
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Phase 13: Notifications
+CREATE TABLE IF NOT EXISTS notifications (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type VARCHAR(50) NOT NULL DEFAULT 'general',
+  title VARCHAR(255) NOT NULL,
+  message TEXT,
+  is_read BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS notifications_user_id_idx ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS notifications_user_unread_idx ON notifications(user_id, is_read);
+
