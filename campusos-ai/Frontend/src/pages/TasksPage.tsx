@@ -1,48 +1,59 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { api, clearToken } from '../lib/api'
-
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { api, clearToken } from '../lib/api';
 import {
   HiOutlinePlus,
   HiOutlineRefresh,
   HiOutlineTrash,
   HiOutlinePencil,
   HiOutlineClock,
-  HiCheckCircle,
+  HiOutlineCheckCircle,
   HiOutlineX,
-} from 'react-icons/hi'
+  HiCheckCircle,
+} from 'react-icons/hi';
 
 type Task = {
-  id: number
-  title: string
-  description: string
-  dueDate: string | null
-  completed: boolean
-  createdAt: string
-}
+  id: number;
+  title: string;
+  description: string | null;
+  dueDate: string | null;
+  completed: boolean;
+  createdAt: string;
+};
 
 type TaskDraft = {
-  title: string
-  description: string
-  dueDate: string | null
-}
-
+  title: string;
+  description: string;
+  dueDate: string | null;
+};
 
 function isAuthError(message: string): boolean {
-  const m = message.toLowerCase()
-  return m.includes('token') || m.includes('authorization') || m.includes('unauthorized') || m.includes('401')
+  const m = message.toLowerCase();
+  return (
+    m.includes('token') ||
+    m.includes('authorization') ||
+    m.includes('unauthorized') ||
+    m.includes('401')
+  );
 }
 
 function formatDueDate(dueDate: string | null): string {
-  if (!dueDate) return 'No due date'
-  // dueDate is YYYY-MM-DD
-  const d = new Date(dueDate)
-  if (Number.isNaN(d.getTime())) return String(dueDate)
-  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+  if (!dueDate) return 'No due date';
+  try {
+    const d = new Date(dueDate + 'T00:00:00'); // Treat as local date
+    if (isNaN(d.getTime())) return String(dueDate);
+    return d.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  } catch (e) {
+    return String(dueDate);
+  }
 }
 
 function trimInput(s: string): string {
-  return (s ?? '').trim()
+  return (s ?? '').trim();
 }
 
 function ModalShell({
@@ -53,26 +64,26 @@ function ModalShell({
   onPrimary,
   primaryDisabled,
 }: {
-  title: string
-  children: React.ReactNode
-  onClose: () => void
-  primaryText: string
-  onPrimary: () => void
-  primaryDisabled?: boolean
+  title: string;
+  children: React.ReactNode;
+  onClose: () => void;
+  primaryText: string;
+  onPrimary: () => void;
+  primaryDisabled?: boolean;
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 px-4 py-6"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 px-4 py-6 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
     >
-      <div className="w-full max-w-sm rounded-2xl border border-white/[0.10] bg-[#0F0F16] shadow-2xl overflow-hidden animate-[fadeIn_160ms_ease-out]">
+      <div className="w-full max-w-sm rounded-2xl border border-white/[0.10] bg-[#16161F] shadow-2xl overflow-hidden animate-[fadeIn_160ms_ease-out]">
         <div className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between">
           <h2 className="text-sm font-semibold text-white">{title}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex items-center justify-center h-9 w-9 rounded-xl border border-white/[0.10] bg-white/[0.03] text-[#E2E8F0] hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF]"
+            className="inline-flex items-center justify-center h-9 w-9 rounded-xl text-[#E2E8F0] hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF]"
             aria-label="Close"
           >
             <HiOutlineX className="w-4 h-4" />
@@ -81,11 +92,11 @@ function ModalShell({
 
         <div className="px-4 py-4">{children}</div>
 
-        <div className="px-4 py-4 border-t border-white/[0.07] flex items-center gap-2">
+        <div className="px-4 py-4 border-t border-white/[0.07] flex items-center gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 rounded-xl border border-white/[0.10] bg-white/[0.03] px-3 py-3 text-xs font-semibold text-[#E2E8F0] hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF]"
+            className="flex-1 rounded-xl border border-white/10 bg-white/5 py-2.5 text-sm font-medium text-[#94A3B8] hover:bg-white/10 transition-colors"
           >
             Cancel
           </button>
@@ -93,14 +104,14 @@ function ModalShell({
             type="button"
             disabled={primaryDisabled}
             onClick={onPrimary}
-            className="flex-1 rounded-xl bg-[#6C63FF] px-3 py-3 text-xs font-semibold text-white shadow-lg shadow-[#6C63FF]/20 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF]"
+            className="flex-1 rounded-xl bg-[#6C63FF] py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#6C63FF]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {primaryText}
           </button>
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function TextField({
@@ -112,14 +123,16 @@ function TextField({
   required,
   multiline,
 }: {
-  label: string
-  value: string
-  placeholder?: string
-  onChange: (v: string) => void
-  error?: string | null
-  required?: boolean
-  multiline?: boolean
+  label: string;
+  value: string;
+  placeholder?: string;
+  onChange: (v: string) => void;
+  error?: string | null;
+  required?: boolean;
+  multiline?: boolean;
 }) {
+  const commonClasses =
+    'mt-2 w-full rounded-xl bg-white/[0.03] border border-white/[0.08] px-3 py-3 text-sm text-white placeholder:text-[#64748B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF]';
   return (
     <label className="block">
       <div className="flex items-baseline justify-between gap-3">
@@ -133,18 +146,18 @@ function TextField({
           value={value}
           placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}
-          className="mt-2 w-full min-h-[84px] rounded-xl bg-white/[0.03] border border-white/[0.08] px-3 py-3 text-sm text-white placeholder:text-[#64748B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF]"
+          className={`${commonClasses} min-h-[84px]`}
         />
       ) : (
         <input
           value={value}
           placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}
-          className="mt-2 w-full rounded-xl bg-white/[0.03] border border-white/[0.08] px-3 py-3 text-sm text-white placeholder:text-[#64748B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF]"
+          className={commonClasses}
         />
       )}
     </label>
-  )
+  );
 }
 
 function Toast({
@@ -152,9 +165,9 @@ function Toast({
   message,
   onDismiss,
 }: {
-  kind: 'success' | 'error'
-  message: string
-  onDismiss: () => void
+  kind: 'success' | 'error';
+  message: string;
+  onDismiss: () => void;
 }) {
   return (
     <div
@@ -162,34 +175,40 @@ function Toast({
       role="status"
     >
       <div
-        className={`rounded-2xl border px-4 py-3 shadow-2xl backdrop-blur bg-[#0F0F16]/90 flex items-start gap-3 ${
+        className={`rounded-2xl border px-4 py-3 shadow-2xl backdrop-blur bg-[#16161F]/90 flex items-start gap-3 ${
           kind === 'success'
             ? 'border-green-500/20 text-green-100'
             : 'border-red-500/20 text-red-100'
         }`}
       >
         <div
-          className={`mt-0.5 h-9 w-9 rounded-2xl flex items-center justify-center ${
+          className={`mt-0.5 h-9 w-9 rounded-2xl flex items-center justify-center flex-shrink-0 ${
             kind === 'success' ? 'bg-green-500/10' : 'bg-red-500/10'
           }`}
         >
-          {kind === 'success' ? <HiCheckCircle className="w-4 h-4 text-green-400" /> : <HiOutlineX className="w-4 h-4 text-red-300" />}
+          {kind === 'success' ? (
+            <HiCheckCircle className="w-4 h-4 text-green-400" />
+          ) : (
+            <HiOutlineX className="w-4 h-4 text-red-300" />
+          )}
         </div>
         <div className="min-w-0">
-          <p className="text-xs font-semibold">{kind === 'success' ? 'Success' : 'Error'}</p>
+          <p className="text-xs font-semibold">
+            {kind === 'success' ? 'Success' : 'Error'}
+          </p>
           <p className="mt-1 text-[12px] text-[#E2E8F0]">{message}</p>
         </div>
         <button
           type="button"
           onClick={onDismiss}
-          className="ml-auto inline-flex items-center justify-center h-9 w-9 rounded-xl border border-white/[0.10] bg-white/[0.03] text-[#E2E8F0] hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF]"
+          className="ml-auto inline-flex items-center justify-center h-9 w-9 rounded-xl text-[#E2E8F0] hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF] flex-shrink-0"
           aria-label="Dismiss"
         >
           <HiOutlineX className="w-4 h-4" />
         </button>
       </div>
     </div>
-  )
+  );
 }
 
 export default function TasksPage() {
@@ -213,7 +232,7 @@ export default function TasksPage() {
   const [toast, setToast] = useState<{ kind: 'success' | 'error'; message: string } | null>(null)
 
   useEffect(() => {
-    if (!toast) return
+    if (!toast) return;
     const t = window.setTimeout(() => setToast(null), 2400)
     return () => window.clearTimeout(t)
   }, [toast])
@@ -226,7 +245,7 @@ export default function TasksPage() {
       const mapped: Task[] = (res.tasks ?? []).map((t: any) => ({
         id: Number(t.id),
         title: String(t.title ?? ''),
-        description: String(t.description ?? ''),
+        description: (t.description ?? null) as string | null,
         dueDate: (t.dueDate ?? t.due_date ?? null) as string | null,
         completed: Boolean(t.completed),
         createdAt: (t.createdAt ?? t.created_at ?? null) as string | null,
@@ -262,7 +281,7 @@ export default function TasksPage() {
   const openEdit = (task: Task) => {
     setEditingId(task.id)
     setDraft({
-      title: task.title,
+      title: task.title ?? '',
       description: task.description ?? '',
       dueDate: task.dueDate ?? null,
     })
@@ -299,14 +318,14 @@ export default function TasksPage() {
       if (editingId == null) {
         const res = await api.tasks.create({
           title: trimmedTitle,
-          description: trimmedDescription,
-          due_date: draft.dueDate,
+          description: trimmedDescription || null,
+          dueDate: draft.dueDate,
         } as any)
         const created: Task = {
           id: Number(res.task.id),
           title: String(res.task.title),
-          description: String(res.task.description ?? ''),
-          dueDate: (res.task.dueDate ?? res.task.due_date ?? null) as string | null,
+          description: (res.task.description ?? null) as string | null,
+          dueDate: (res.task.dueDate ?? null) as string | null,
           completed: Boolean(res.task.completed),
           createdAt: (res.task.createdAt ?? res.task.created_at ?? null) as string | null,
         }
@@ -316,13 +335,13 @@ export default function TasksPage() {
         const res = await api.tasks.update(editingId, {
           title: trimmedTitle,
           description: trimmedDescription,
-          due_date: draft.dueDate,
+          dueDate: draft.dueDate,
         } as any)
         const updated: Task = {
           id: Number(res.task.id),
           title: String(res.task.title),
-          description: String(res.task.description ?? ''),
-          dueDate: (res.task.dueDate ?? res.task.due_date ?? null) as string | null,
+          description: (res.task.description ?? null) as string | null,
+          dueDate: (res.task.dueDate ?? null) as string | null,
           completed: Boolean(res.task.completed),
           createdAt: (res.task.createdAt ?? res.task.created_at ?? null) as string | null,
         }
@@ -391,7 +410,7 @@ export default function TasksPage() {
     }
   }
 
-  const recentTasks = useMemo(() => tasks.slice(0, 5), [tasks])
+  const sortedTasks = useMemo(() => [...tasks].sort((a, b) => (a.completed === b.completed) ? (b.createdAt?.localeCompare(a.createdAt ?? '') ?? 0) : a.completed ? 1 : -1), [tasks]);
 
   return (
     <div className="relative min-h-screen bg-[#0A0A0F] px-4 pt-10 pb-[calc(7rem+env(safe-area-inset-bottom))] overflow-x-hidden">
@@ -476,7 +495,7 @@ export default function TasksPage() {
             </div>
           ) : (
             <div className="rounded-2xl border border-white/[0.07] bg-[#111118] shadow-xl overflow-hidden">
-              {tasks.map((task) => (
+              {sortedTasks.map((task) => (
                 <div key={task.id} className="px-4 py-3 border-b border-white/[0.05] last:border-0">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3 min-w-0">
@@ -486,12 +505,11 @@ export default function TasksPage() {
                         aria-label={task.completed ? 'Mark incomplete' : 'Mark complete'}
                         className="mt-0.5 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF] rounded-full"
                       >
-                        <input
-                          type="checkbox"
-                          checked={task.completed}
-                          readOnly
-                          className="h-5 w-5 accent-[#6C63FF]"
-                        />
+                        {task.completed ? (
+                          <HiCheckCircle className="w-5 h-5 text-[#6C63FF]" />
+                        ) : (
+                          <HiOutlineCheckCircle className="w-5 h-5 text-[#3B4558] hover:text-[#6C63FF] transition-colors" />
+                        )}
                       </button>
 
                       <div className="min-w-0">
@@ -508,7 +526,7 @@ export default function TasksPage() {
                             <HiOutlineClock className="w-3.5 h-3.5" />
                             {task.dueDate ? formatDueDate(task.dueDate) : 'No due date'}
                           </span>
-                          {task.description?.trim() ? (
+                          {task.description ? (
                             <span className="text-xs text-[#64748B] truncate max-w-[180px]">{task.description}</span>
                           ) : null}
                         </div>
@@ -540,24 +558,6 @@ export default function TasksPage() {
           )}
         </div>
 
-        {/* Recent tasks inline for mobile quick scan */}
-        {!loading && tasks.length > 0 ? (
-          <div className="rounded-2xl border border-white/[0.07] bg-[#111118] p-4 shadow-xl">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-[#94A3B8] uppercase tracking-widest">Recent</h2>
-            </div>
-            <div className="space-y-2">
-              {recentTasks.map((t) => (
-                <div key={t.id} className="flex items-center justify-between gap-3">
-                  <p className={`text-xs ${t.completed ? 'text-[#3B4558] line-through' : 'text-[#E2E8F0]'}`}>
-                    {t.title}
-                  </p>
-                  <span className="text-[10px] text-[#64748B]">{t.dueDate ? t.dueDate : '—'}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
       </div>
 
       {showAddEdit ? (
@@ -606,17 +606,17 @@ export default function TasksPage() {
       ) : null}
 
       {showDeleteConfirm ? (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center px-4 py-6" role="dialog" aria-modal="true">
-          <div className="w-full max-w-sm rounded-2xl border border-white/[0.10] bg-[#0F0F16] shadow-2xl overflow-hidden animate-[fadeIn_160ms_ease-out]">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center px-4 py-6" role="dialog" aria-modal="true">
+          <div className="w-full max-w-sm rounded-2xl border border-white/[0.10] bg-[#16161F] shadow-2xl overflow-hidden animate-[fadeIn_160ms_ease-out]">
             <div className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between">
               <h2 className="text-sm font-semibold text-white">Delete task</h2>
             </div>
             <div className="px-4 py-4">
-              <p className="text-xs text-[#E2E8F0]">
+              <p className="text-sm text-[#94A3B8]">
                 This will permanently remove the task. This action can’t be undone.
               </p>
             </div>
-            <div className="px-4 py-4 border-t border-white/[0.07] flex items-center gap-2">
+            <div className="px-4 py-4 border-t border-white/[0.07] flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => {
@@ -624,7 +624,7 @@ export default function TasksPage() {
                   setShowDeleteConfirm(false)
                   setDeletingId(null)
                 }}
-                className="flex-1 rounded-xl border border-white/[0.10] bg-white/[0.03] px-3 py-3 text-xs font-semibold text-[#E2E8F0] hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF]"
+                className="flex-1 rounded-xl border border-white/10 bg-white/5 py-2.5 text-sm font-medium text-[#94A3B8] hover:bg-white/10 transition-colors"
               >
                 Cancel
               </button>
@@ -632,7 +632,7 @@ export default function TasksPage() {
                 type="button"
                 disabled={submitting}
                 onClick={() => void confirmDelete()}
-                className="flex-1 rounded-xl bg-red-500/15 px-3 py-3 text-xs font-semibold text-red-200 shadow-lg shadow-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+                className="flex-1 rounded-xl bg-red-500/90 py-2.5 text-sm font-semibold text-white hover:bg-red-500 transition-colors disabled:opacity-50"
               >
                 Delete
               </button>
@@ -647,4 +647,3 @@ export default function TasksPage() {
     </div>
   )
 }
-

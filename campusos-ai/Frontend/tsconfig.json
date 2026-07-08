@@ -16,10 +16,9 @@
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
-    "ignoreDeprecations": [],
+    "ignoreDeprecations": "ignoreDeprecations"
 
-
-  "paths": {
+    "paths": {
       "@/*": ["src/*"]
     }
   },

@@ -58,20 +58,87 @@ CampusOS AI is a mobile-first student productivity platform designed to help col
 
 ## 📂 Project Structure
 
-```
+```plaintext
 CampusOS-AI/
+├── Backend/                # Node.js, Express.js, PostgreSQL
+│   ├── src/
+│   │   ├── api/            # API routes and controllers
+│   │   ├── config/         # Configuration files (db, etc.)
+│   │   ├── middleware/     # Custom Express middleware
+│   │   ├── models/         # Database models
+│   │   ├── services/       # Business logic
+│   │   └── utils/          # Utility functions
+│   ├── .env.example        # Example environment variables
+│   └── package.json
 │
-├── Frontend/
-├── Backend/
-├── Docs/
+├── Frontend/               # React, TypeScript, Tailwind CSS
+│   ├── src/
+│   │   ├── assets/         # Images, fonts, etc.
+│   │   ├── components/     # Reusable UI components
+│   │   ├── hooks/          # Custom React hooks
+│   │   ├── pages/          # Page components
+│   │   ├── services/       # API service calls
+│   │   ├── state/          # State management (e.g., Zustand, Redux)
+│   │   ├── styles/         # Global styles
+│   │   └── utils/          # Utility functions
+│   └── package.json
+│
 └── README.md
 ```
 
 ---
 
+## 🏁 Getting Started
+
+### Prerequisites
+
+- Node.js (v18.x or later)
+- npm or yarn
+- PostgreSQL
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/your-username/CampusOS-AI.git
+cd CampusOS-AI
+```
+
+### 2. Backend Setup
+
+```bash
+# Navigate to the backend directory
+cd Backend
+
+# Install dependencies
+npm install
+
+# Set up environment variables by copying the example file
+cp .env.example .env
+
+# Update .env with your PostgreSQL connection string and a JWT secret
+
+# Run the backend server
+npm run dev
+```
+
+### 3. Frontend Setup
+
+```bash
+# Navigate to the frontend directory
+cd ../Frontend
+
+# Install dependencies
+npm install
+
+# Run the frontend development server
+npm start
+```
+
+---
+
 ## 👥 Team
-- [Your Name]
-- Fariza Sultana
+- Divyansh Singh
+- Fariza Sultana (Project Lead)
 
 ---
 
@@ -82,3 +149,23 @@ Under Development
 ---
 
 Built with ❤️ for Students.
+
+---
+
+## 📦 Production Build
+
+### Frontend
+
+```bash
+cd Frontend
+npm run build
+```
+The production-ready static files will be in the `Frontend/dist` directory.
+
+### Backend
+
+```bash
+cd Backend
+npm run build
+```
+The compiled JavaScript files will be in the `Backend/dist` directory. Ensure your `NODE_ENV` is set to `production` when deploying.

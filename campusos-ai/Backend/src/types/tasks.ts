@@ -1,9 +1,9 @@
-export type Task = {
-  id: number
-  title: string
-  description: string
-  dueDate: string | null
-  completed: boolean
-  createdAt: string
+export interface Task {
+  id: number;
+  title: string;
+  description: string | null;
+  dueDate: string | null;
+  completed: boolean;
+  createdAt: string;
+  userId: number;
 }
-

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, clearToken } from "../lib/api";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 import {
   HiSparkles,                                      
@@ -103,16 +103,18 @@ function QuickActionCard({
   sub,
   accent,
   glow,
+  to,
 }: {
   icon: React.ElementType;
   label: string;
   sub: string;
   accent: string;
   glow: string;
+  to: string;
 }) {
   return (
-    <button
-      type="button"
+    <Link
+      to={to}
       className="group relative flex flex-col items-start gap-3 rounded-2xl border border-white/[0.07] bg-[#111118] p-4 text-left shadow-lg transition-all hover:border-white/[0.12] hover:bg-[#16161F] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF] overflow-hidden"
     >
       <div
@@ -129,7 +131,7 @@ function QuickActionCard({
         <p className="text-sm font-semibold text-[#E2E8F0] leading-tight">{label}</p>
         <p className="text-xs text-[#4B5563] mt-0.5">{sub}</p>
       </div>
-    </button>
+    </Link>
   );
 }
 
@@ -177,6 +179,15 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [stats, setStats] = useState({
+    tasksCompleted: 0,
+    tasksPending: 0,
+    notesCreated: 0,
+    aiChats: 0,
+    studySessionsCompleted: 0,
+    studySessionsPending: 0,
+    productivityScore: 0,
+  });
 
   type StudySession = {
     id: number
@@ -249,33 +260,25 @@ export default function DashboardPage() {
         setLoading(true);
         setError(null);
 
-        const p = await api.auth.profile();
-        if (mounted) setProfile(p.user);
-      } catch (e: any) {
-        // handled by tasks load below
-        const msg = String(e?.message ?? e);
+        const [profileRes, tasksRes, analyticsRes] = await Promise.all([
+          api.auth.profile(),
+          api.tasks.list(),
+          api.get('/analytics'),
+        ]);
+
         if (mounted) {
-          if (isAuthError(msg)) {
-            clearToken();
-            navigate("/", { replace: true });
-            return;
-          }
-          setError(msg);
+          setProfile(profileRes.user);
+          const mappedTasks: TaskWithCreatedAt[] = (tasksRes.tasks ?? []).map((t: any) => ({
+            id: Number(t.id),
+            title: String(t.title ?? ""),
+            due: String(t.dueDate ?? t.due_date ?? ""),
+            done: Boolean(t.completed),
+            createdAt: t.createdAt ?? t.created_at ?? null,
+          }));
+          setTasks(mappedTasks);
+          setStats(analyticsRes.data);
         }
-      }
-
-      try {
-        const res = await api.tasks.list();
-        const mapped: TaskWithCreatedAt[] = (res.tasks ?? []).map((t: any) => ({
-          id: Number(t.id),
-          title: String(t.title ?? ""),
-          due: String(t.dueDate ?? t.due_date ?? ""),
-          done: Boolean(t.completed),
-          createdAt: t.createdAt ?? t.created_at ?? null,
-        }));
-        if (mounted) setTasks(mapped);
       } catch (e: any) {
-
         const msg = String(e?.message ?? e);
         if (mounted) {
           if (isAuthError(msg)) {
@@ -288,6 +291,7 @@ export default function DashboardPage() {
       } finally {
         if (mounted) setLoading(false);
       }
+
     })();
 
     return () => {
@@ -317,19 +321,11 @@ export default function DashboardPage() {
   };
 
 
-  const pendingCount = tasks.filter((t) => !t.done).length;
-  const completedCount = tasks.filter((t) => t.done).length;
+  const pendingCount = stats.tasksPending;
+  const completedCount = stats.tasksCompleted;
   const recentTasks = [...tasks]
     .sort((a, b) => String((b.createdAt ?? b.created_at) ?? "").localeCompare(String((a.createdAt ?? a.created_at) ?? "")))
     .slice(0, 4);
-
-  const nextStudyDateLabel = nextStudyDate ? nextStudyDate : null
-
-  const stats = {
-    tasksCompleted: completedCount,
-    notesCreated: 0,
-    aiChats: 0,
-  };
 
 
   return (
@@ -424,6 +420,7 @@ export default function DashboardPage() {
               sub={`${stats.notesCreated} notes saved`}
               accent="#6C63FF"
               glow="radial-gradient(ellipse at top left, rgba(108,99,255,0.12), transparent 70%)"
+              to="/notes"
             />
             <QuickActionCard
               icon={HiOutlineClipboardList}
@@ -431,6 +428,7 @@ export default function DashboardPage() {
               sub={`${pendingCount} pending`}
               accent="#F59E0B"
               glow="radial-gradient(ellipse at top left, rgba(245,158,11,0.10), transparent 70%)"
+              to="/tasks"
             />
             <div className="col-span-2">
               <QuickActionCard
@@ -439,6 +437,7 @@ export default function DashboardPage() {
                 sub="Ask anything — summaries, explanations, quizzes"
                 accent="#A78BFA"
                 glow="radial-gradient(ellipse at top left, rgba(167,139,250,0.12), transparent 70%)"
+                to="/ai"
               />
             </div>
           </div>
@@ -507,9 +506,9 @@ export default function DashboardPage() {
               <p className="text-[10px] text-[#4B5563] mt-0.5">Upcoming</p>
             </div>
             <div className="rounded-xl bg-white/[0.04] border border-white/[0.05] py-2 text-center">
-              <p className="text-base font-bold text-white">{nextStudyDateLabel ? 'Next' : '—'}</p>
+              <p className="text-base font-bold text-white">{nextStudyDate ? 'Next' : '—'}</p>
               <p className="text-[10px] text-[#4B5563] mt-0.5">
-                {nextStudyDateLabel ? nextStudyDateLabel : 'All done'}
+                {nextStudyDate ? nextStudyDate : 'All done'}
               </p>
             </div>
           </div>
@@ -541,4 +540,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

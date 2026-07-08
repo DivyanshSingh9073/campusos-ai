@@ -1,20 +1,29 @@
 import { Router } from 'express';
 import { query } from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
+import { listTasksForUser } from '../services/tasksService.js';
 export const tasksRouter = Router();
 tasksRouter.use(requireAuth);
 tasksRouter.get('/', async (req, res) => {
     const userId = req.user.id;
-    const rows = await query('SELECT id, title, due_date AS dueDate, completed FROM tasks WHERE user_id=$1 ORDER BY id DESC', [userId]);
+    const rows = await listTasksForUser(userId);
     return res.json({ tasks: rows });
 });
 tasksRouter.post('/', async (req, res) => {
     const userId = req.user.id;
-    const { title, due_date, completed } = req.body;
-    if (!title?.trim())
+    const { title, description, due_date, completed } = req.body;
+    const trimmedTitle = typeof title === 'string' ? title.trim() : '';
+    const trimmedDescription = typeof description === 'string' ? description.trim() : '';
+    if (!trimmedTitle)
         return res.status(400).json({ error: 'title is required' });
     const due = due_date ? String(due_date) : null;
-    const rows = await query('INSERT INTO tasks (title, due_date, completed, user_id) VALUES ($1, $2, COALESCE($3,false), $4) RETURNING id, title, due_date AS dueDate, completed', [title.trim(), due, typeof completed === 'boolean' ? completed : false, userId]);
+    const rows = await query('INSERT INTO tasks (title, description, due_date, completed, user_id) VALUES ($1, $2, $3, COALESCE($4,false), $5) RETURNING id, title, description, due_date AS dueDate, completed, created_at AS createdAt', [
+        trimmedTitle,
+        trimmedDescription,
+        due,
+        typeof completed === 'boolean' ? completed : false,
+        userId,
+    ]);
     return res.status(201).json({ task: rows[0] });
 });
 tasksRouter.put('/:id', async (req, res) => {
@@ -22,13 +31,26 @@ tasksRouter.put('/:id', async (req, res) => {
     const taskId = Number(req.params.id);
     if (!Number.isFinite(taskId))
         return res.status(400).json({ error: 'invalid id' });
-    const { title, due_date, completed } = req.body;
+    const { title, description, due_date, completed } = req.body;
+    const trimmedTitle = typeof title === 'string' ? title.trim() : undefined;
+    const trimmedDescription = typeof description === 'string' ? description.trim() : undefined;
+    if (typeof title === 'string' && !trimmedTitle) {
+        return res.status(400).json({ error: 'title cannot be empty' });
+    }
     const rows = await query(`UPDATE tasks
      SET title = COALESCE($1, title),
-         due_date = COALESCE($2, due_date),
-         completed = COALESCE($3, completed)
-     WHERE id=$4 AND user_id=$5
-     RETURNING id, title, due_date AS dueDate, completed`, [title?.trim() ?? null, due_date ?? null, typeof completed === 'boolean' ? completed : null, taskId, userId]);
+         description = COALESCE($2, description),
+         due_date = COALESCE($3, due_date),
+         completed = COALESCE($4, completed)
+     WHERE id=$5 AND user_id=$6
+     RETURNING id, title, description, due_date AS dueDate, completed, created_at AS createdAt`, [
+        trimmedTitle ?? null,
+        trimmedDescription ?? null,
+        due_date ?? null,
+        typeof completed === 'boolean' ? completed : null,
+        taskId,
+        userId,
+    ]);
     if (!rows[0])
         return res.status(404).json({ error: 'task not found' });
     return res.json({ task: rows[0] });

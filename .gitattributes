@@ -1,17 +1,8 @@
-# Auto-detect text files and normalize them to LF in the repository.
-# Working tree uses platform line endings.
+# Enforce LF line endings for all text files to ensure cross-platform consistency.
+# Git will handle conversions automatically based on this setting.
 * text=auto eol=lf
 
-# Ensure JSON stays consistent.
-*.json text eol=lf
-*.md text eol=lf
-*.ts text eol=lf
-*.tsx text eol=lf
-*.js text eol=lf
-*.jsx text eol=lf
-*.css text eol=lf
-*.html text eol=lf
-*.yml text eol=lf
-*.yaml text eol=lf
-*.sql text eol=lf
-
+# Explicitly mark common binary file types to prevent Git from changing their line endings.
+*.{png,jpg,jpeg,gif,ico} binary
+*.{eot,ttf,woff,woff2} binary
+*.pdf binary

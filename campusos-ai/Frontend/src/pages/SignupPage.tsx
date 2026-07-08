@@ -168,7 +168,7 @@ export default function SignupPage() {
       const result = await api.auth.login({ email: form.email, password: form.password })
       setJwtToken(result.token)
 
-      navigate('/dashboard', { replace: true })
+      navigate('/dashboard', { replace: true });
     } catch (err: any) {
       setFormError(String(err?.message ?? err))
     }
@@ -362,4 +362,3 @@ export default function SignupPage() {
     </div>
   )
 }
-
