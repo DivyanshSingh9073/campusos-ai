@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, ApiRequestError } from '../lib/api'
+import { Toast } from './components/Toast'
 import {
   HiOutlineArrowLeft,
   HiOutlinePlus,
@@ -18,22 +19,6 @@ type Note = {
 function clampContentPreview(text: string) {
   const normalized = (text ?? '').replace(/\s+/g, ' ').trim()
   return normalized
-}
-
-function Toast({
-  kind,
-  text,
-}: {
-  kind: 'success' | 'error'
-  text: string
-}) {
-  const bg = kind === 'success' ? 'border-green-500/20 bg-green-500/10' : 'border-red-500/20 bg-red-500/10'
-  const fg = kind === 'success' ? 'text-green-200' : 'text-red-200'
-  return (
-    <div className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-50 rounded-2xl border ${bg} px-4 py-3 shadow-xl`}> 
-      <p className={`text-xs font-semibold ${fg}`}>{text}</p>
-    </div>
-  )
 }
 
 export default function NoteEditorPage() {
@@ -59,6 +44,7 @@ export default function NoteEditorPage() {
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [toast, setToast] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
+  const [retryToken, setRetryToken] = useState(0)
 
   useEffect(() => {
     let mounted = true
@@ -94,7 +80,7 @@ export default function NoteEditorPage() {
     return () => {
       mounted = false
     }
-  }, [isNew, noteId, navigate])
+  }, [isNew, noteId, navigate, retryToken])
 
   useEffect(() => {
     if (!toast) return
@@ -202,7 +188,7 @@ export default function NoteEditorPage() {
             <div className="mt-3">
               <button
                 type="button"
-                onClick={() => window.location.reload()}
+                onClick={() => setRetryToken((n) => n + 1)}
                 className="inline-flex items-center gap-2 rounded-xl bg-[#6C63FF] px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-[#6C63FF]/20 hover:bg-[#7C6FFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF]"
               >
                 <HiOutlineRefresh className="w-4 h-4" /> Retry
@@ -275,7 +261,10 @@ export default function NoteEditorPage() {
               rows={14}
               className="mt-1 w-full resize-none rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-[#E2E8F0] placeholder-[#3B4558] outline-none transition-colors focus:border-[#6C63FF] focus:ring-2 focus:ring-[#6C63FF]/20"
             />
-            <p className="mt-2 text-[11px] text-[#64748B]">Preview: {preview || '—'}</p>
+            <p className="mt-2 flex items-center justify-between text-[11px] text-[#64748B]">
+              <span className="truncate pr-2">Preview: {preview || '—'}</span>
+              <span className="shrink-0 text-[#3B4558]">{content.length.toLocaleString()} chars</span>
+            </p>
           </div>
 
           {saveError && (

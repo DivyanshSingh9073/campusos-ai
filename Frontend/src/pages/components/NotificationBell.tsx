@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { HiOutlineBell } from "react-icons/hi";
 import { api, ApiRequestError, type NotificationItem } from "../../lib/api";
+import { NOTIFICATION_TYPE_ICON, NOTIFICATION_TYPE_STYLE } from "../../lib/notificationStyles";
 import { SkeletonRow } from "./Skeleton";
 
 // How often we poll for the unread count. There's no websocket/SSE
@@ -53,7 +54,7 @@ export default function NotificationBell() {
     if (next && items === null) {
       setLoadingItems(true);
       try {
-        const res = await api.notifications.list(6);
+        const res = await api.notifications.list({ limit: 6 });
         setItems(res.notifications);
       } catch (e: unknown) {
         if (!(e instanceof ApiRequestError && e.status === 401)) {
@@ -134,28 +135,33 @@ export default function NotificationBell() {
             )}
 
             {!loadingItems &&
-              items?.map((n) => (
-                <button
-                  key={n.id}
-                  type="button"
-                  onClick={() => !n.read && markRead(n.id)}
-                  className={`flex w-full items-start gap-2 px-4 py-3 text-left transition-colors hover:bg-white/[0.03] ${
-                    !n.read ? "bg-[#6C63FF]/[0.04]" : ""
-                  }`}
-                >
-                  <span
-                    className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${
-                      !n.read ? "bg-[#6C63FF]" : "bg-transparent"
+              items?.map((n) => {
+                const Icon = NOTIFICATION_TYPE_ICON[n.type] ?? HiOutlineBell;
+                const style = NOTIFICATION_TYPE_STYLE[n.type] ?? NOTIFICATION_TYPE_STYLE.general;
+                return (
+                  <button
+                    key={n.id}
+                    type="button"
+                    onClick={() => !n.read && markRead(n.id)}
+                    className={`flex w-full items-start gap-2.5 px-4 py-3 text-left transition-colors hover:bg-white/[0.03] ${
+                      !n.read ? "bg-[#6C63FF]/[0.04]" : ""
                     }`}
-                  />
-                  <span className="flex-1 min-w-0">
-                    <span className="block text-xs font-medium text-[#E2E8F0]">{n.title}</span>
-                    {n.message && (
-                      <span className="block text-xs text-[#64748B] mt-0.5 line-clamp-2">{n.message}</span>
-                    )}
-                  </span>
-                </button>
-              ))}
+                  >
+                    <span className={`mt-0.5 shrink-0 flex h-7 w-7 items-center justify-center rounded-lg ${style.bg}`}>
+                      <Icon className={`w-3.5 h-3.5 ${style.color}`} />
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="flex items-center gap-1.5">
+                        <span className="block text-xs font-medium text-[#E2E8F0] truncate">{n.title}</span>
+                        {!n.read && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#6C63FF]" aria-hidden="true" />}
+                      </span>
+                      {n.message && (
+                        <span className="block text-xs text-[#64748B] mt-0.5 line-clamp-2">{n.message}</span>
+                      )}
+                    </span>
+                  </button>
+                );
+              })}
           </div>
 
           <button

@@ -111,6 +111,14 @@ async function request<T>(
 
 // ─── API surface ──────────────────────────────────────────────────────────────
 
+export interface UserProfileDto {
+  id: number
+  name: string
+  email: string
+  branch?: string | null
+  year?: string | null
+}
+
 export const api = {
   auth: {
     login(body: { email: string; password: string }) {
@@ -125,9 +133,16 @@ export const api = {
     },
 
     profile() {
-      return request<{ user: { id: number; name: string; email: string } }>('/auth/profile', {
+      return request<{ user: UserProfileDto }>('/auth/profile', {
         method: 'GET',
         auth: true,
+      })
+    },
+
+    updateProfile(body: { name?: string; branch?: string; year?: string }) {
+      return request<{ user: UserProfileDto }>('/auth/profile', {
+        method: 'PATCH',
+        body,
       })
     },
   },
@@ -196,9 +211,14 @@ export const api = {
   },
 
   notifications: {
-    list(limit?: number) {
+    list(opts?: { limit?: number; type?: NotificationType; unreadOnly?: boolean }) {
+      const params = new URLSearchParams()
+      if (opts?.limit) params.set('limit', String(opts.limit))
+      if (opts?.type) params.set('type', opts.type)
+      if (opts?.unreadOnly) params.set('unread', 'true')
+      const qs = params.toString()
       return request<{ notifications: NotificationItem[] }>(
-        `/notifications${limit ? `?limit=${limit}` : ''}`,
+        `/notifications${qs ? `?${qs}` : ''}`,
         { method: 'GET' }
       )
     },

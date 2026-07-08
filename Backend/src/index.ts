@@ -7,12 +7,21 @@ import { authRouter } from './routes/auth.routes.js'
 import { notesRouter } from './routes/notes.routes.js'
 import { tasksRouter } from './routes/tasks.routes.js'
 import { notificationsRouter } from './routes/notifications.routes.js'
+import { requestLogger } from './middleware/requestLogger.js'
+import { notFound } from './middleware/notFound.js'
+import { errorHandler } from './middleware/errorHandler.js'
 
 const app = express()
 
-app.use(helmet())
+app.use(helmet({
+  // Sensible defaults for an API server (no HTML pages served here beyond
+  // the root status message), plus the usual security headers helmet
+  // already applies (X-Content-Type-Options, X-Frame-Options, etc).
+  crossOriginResourcePolicy: { policy: 'same-site' },
+}))
 app.use(cors({ origin: config.CORS_ORIGIN, credentials: true }))
 app.use(express.json({ limit: '1mb' }))
+app.use(requestLogger)
 
 app.get('/health', (_req: express.Request, res: express.Response) => {
   res.json({ ok: true })
@@ -29,19 +38,9 @@ app.get('/', (_req: express.Request, res: express.Response) => {
   })
 })
 
-// Basic 404
-app.use((req: express.Request, res: express.Response) => {
-  res.status(404).json({ error: `Route not found: ${req.method} ${req.path}` })
-})
-
-// Error handler
-app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error(err)
-  res.status(500).json({ error: 'Internal server error' })
-})
+app.use(notFound)
+app.use(errorHandler)
 
 app.listen(config.PORT, () => {
   console.log(`CampusOS AI Backend listening on http://localhost:${config.PORT}`)
 })
-
-

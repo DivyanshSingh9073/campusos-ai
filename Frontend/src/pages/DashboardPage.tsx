@@ -54,12 +54,10 @@ const USER_FALLBACK = {
   aiChats: 0,
 };
 
-const TASKS: Task[] = [
-  { id: 1, title: "Submit OS Assignment",      due: "Today, 11:59 PM", done: false },
-  { id: 2, title: "DBMS Lab Report",           due: "Tomorrow, 9 AM",  done: false },
-  { id: 3, title: "DSA Practice — Trees",      due: "Wed, 6 PM",       done: false },
-  { id: 4, title: "CN Module 3 Notes",         due: "Thu, 5 PM",       done: true },
-];
+// (Phase 14: removed the hardcoded mock TASKS array that used to seed
+// initial state — it caused a brief flash of fake tasks before the real
+// list loaded. The Upcoming Tasks section now shows a proper skeleton
+// instead while loading.)
 
 
 
@@ -181,7 +179,7 @@ function TaskRow({ task, onToggle }: { task: Task; onToggle: (id: number) => voi
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const [tasks, setTasks] = useState<Task[]>(TASKS);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -242,7 +240,7 @@ export default function DashboardPage() {
 
       // 4) Recent notifications preview for the dashboard card.
       try {
-        const notifRes = await api.notifications.list(3);
+        const notifRes = await api.notifications.list({ limit: 3 });
         if (mounted) setNotifications(notifRes.notifications);
       } catch {
         // Non-fatal — section just renders its empty state.
@@ -330,8 +328,8 @@ export default function DashboardPage() {
           {/* Mini stats */}
           <div className="mt-4 grid grid-cols-3 gap-2">
             {[
-              { value: tasks.filter((t) => t.done).length, label: "Tasks done" },
-              { value: notesCount ?? 0,                     label: "Notes" },
+              { value: loading ? "–" : tasks.filter((t) => t.done).length, label: "Tasks done" },
+              { value: notesCount === null ? "–" : notesCount,             label: "Notes" },
               { value: stats.aiChats,                       label: "AI chats" },
             ].map(({ value, label }) => (
               <div
@@ -458,15 +456,29 @@ export default function DashboardPage() {
         {/* ── 6. Upcoming tasks ───────────────────────────────────────────── */}
         <div>
           <SectionHeader title="Upcoming Tasks" action="Add task" onAction={() => navigate("/tasks")} />
-          <div className="rounded-2xl border border-white/[0.07] bg-[#111118] px-4 shadow-xl">
-            {tasks.map((task) => (
-              <TaskRow key={task.id} task={task} onToggle={toggleTask} />
-            ))}
-          </div>
-          {pendingCount === 0 && (
-            <p className="mt-3 text-center text-xs text-green-400 font-medium">
-              🎉 All tasks done!
-            </p>
+          {loading ? (
+            <div className="rounded-2xl border border-white/[0.07] bg-[#111118] divide-y divide-white/[0.05] shadow-xl overflow-hidden">
+              <SkeletonRow />
+              <SkeletonRow />
+              <SkeletonRow />
+            </div>
+          ) : tasks.length === 0 ? (
+            <div className="rounded-2xl border border-white/[0.07] bg-[#111118] px-4 py-6 text-center shadow-xl">
+              <p className="text-xs text-[#64748B]">No tasks yet — add one to get started.</p>
+            </div>
+          ) : (
+            <>
+              <div className="rounded-2xl border border-white/[0.07] bg-[#111118] px-4 shadow-xl">
+                {tasks.map((task) => (
+                  <TaskRow key={task.id} task={task} onToggle={toggleTask} />
+                ))}
+              </div>
+              {pendingCount === 0 && (
+                <p className="mt-3 text-center text-xs text-green-400 font-medium">
+                  🎉 All tasks done!
+                </p>
+              )}
+            </>
           )}
         </div>
 

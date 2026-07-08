@@ -1,23 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { HiOutlineArrowLeft, HiOutlineBell, HiSparkles, HiOutlineDocumentText, HiOutlineClipboardList, HiOutlineTrash } from "react-icons/hi";
-import { api, ApiRequestError, type NotificationItem, type NotificationType } from "../lib/api";
+import { HiOutlineArrowLeft, HiOutlineBell, HiOutlineTrash } from "react-icons/hi";
+import { api, ApiRequestError, type NotificationItem } from "../lib/api";
+import { NOTIFICATION_TYPE_ICON, NOTIFICATION_TYPE_STYLE } from "../lib/notificationStyles";
 import { formatRelativeTime } from "../lib/formatRelativeTime";
 import { SkeletonRow } from "./components/Skeleton";
-
-const TYPE_ICON: Record<NotificationType, React.ElementType> = {
-  task: HiOutlineClipboardList,
-  note: HiOutlineDocumentText,
-  ai: HiSparkles,
-  general: HiOutlineBell,
-};
-
-const TYPE_STYLE: Record<NotificationType, { bg: string; color: string }> = {
-  task: { bg: "bg-[#F59E0B]/12", color: "text-[#F59E0B]" },
-  note: { bg: "bg-[#6C63FF]/12", color: "text-[#6C63FF]" },
-  ai: { bg: "bg-[#A78BFA]/12", color: "text-[#A78BFA]" },
-  general: { bg: "bg-sky-400/10", color: "text-sky-400" },
-};
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
@@ -25,6 +12,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [markingAll, setMarkingAll] = useState(false);
+  const [filter, setFilter] = useState<"all" | "unread">("all");
 
   useEffect(() => {
     let mounted = true;
@@ -33,7 +21,7 @@ export default function NotificationsPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await api.notifications.list(100);
+        const res = await api.notifications.list({ limit: 100 });
         if (mounted) setItems(res.notifications);
       } catch (e: unknown) {
         if (!mounted) return;
@@ -52,6 +40,7 @@ export default function NotificationsPage() {
   }, []);
 
   const unreadCount = items.filter((n) => !n.read).length;
+  const visibleItems = filter === "unread" ? items.filter((n) => !n.read) : items;
 
   const markRead = async (id: number) => {
     setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
@@ -122,6 +111,23 @@ export default function NotificationsPage() {
           </button>
         </div>
 
+        {!loading && !error && items.length > 0 && (
+          <div className="flex gap-1 rounded-xl border border-white/10 bg-white/5 p-1">
+            {(["all", "unread"] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFilter(f)}
+                className={`flex-1 rounded-lg py-1.5 text-[11px] font-semibold capitalize transition-colors ${
+                  filter === f ? "bg-[#6C63FF]/15 text-[#A5A0FF]" : "text-[#64748B] hover:text-[#94A3B8]"
+                }`}
+              >
+                {f === "unread" ? `Unread (${unreadCount})` : "All"}
+              </button>
+            ))}
+          </div>
+        )}
+
         {unreadCount > 0 && (
           <button
             type="button"
@@ -155,11 +161,16 @@ export default function NotificationsPage() {
               Things like completed tasks and new notes will show up here.
             </p>
           </div>
+        ) : visibleItems.length === 0 ? (
+          <div className="rounded-2xl border border-white/[0.07] bg-[#111118] p-6 text-center shadow-xl">
+            <p className="text-sm font-semibold text-white">You're all caught up 🎉</p>
+            <p className="mt-2 text-xs text-[#64748B]">No unread notifications.</p>
+          </div>
         ) : (
           <div className="rounded-2xl border border-white/[0.07] bg-[#111118] divide-y divide-white/[0.05] shadow-xl overflow-hidden">
-            {items.map((n) => {
-              const Icon = TYPE_ICON[n.type] ?? HiOutlineBell;
-              const style = TYPE_STYLE[n.type] ?? TYPE_STYLE.general;
+            {visibleItems.map((n) => {
+              const Icon = NOTIFICATION_TYPE_ICON[n.type] ?? HiOutlineBell;
+              const style = NOTIFICATION_TYPE_STYLE[n.type] ?? NOTIFICATION_TYPE_STYLE.general;
               return (
                 <div
                   key={n.id}

@@ -9,7 +9,7 @@ notificationsRouter.use(requireAuth)
 
 const ALLOWED_TYPES = ['task', 'note', 'ai', 'general']
 
-// GET /api/notifications?limit=50
+// GET /api/notifications?limit=50&type=task&unread=true
 notificationsRouter.get(
   '/',
   asyncHandler(async (req: AuthedRequest, res) => {
@@ -17,13 +17,29 @@ notificationsRouter.get(
     const requestedLimit = Number(req.query.limit)
     const limit = Number.isFinite(requestedLimit) && requestedLimit > 0 && requestedLimit <= 100 ? requestedLimit : 50
 
+    const type = typeof req.query.type === 'string' && ALLOWED_TYPES.includes(req.query.type) ? req.query.type : null
+    const unreadOnly = req.query.unread === 'true'
+
+    const conditions = ['user_id = $1']
+    const params: unknown[] = [userId]
+
+    if (type) {
+      params.push(type)
+      conditions.push(`type = $${params.length}`)
+    }
+    if (unreadOnly) {
+      conditions.push('is_read = false')
+    }
+
+    params.push(limit)
+
     const rows = await query<any>(
       `SELECT id, type, title, message, is_read AS read, created_at AS "createdAt"
        FROM notifications
-       WHERE user_id = $1
+       WHERE ${conditions.join(' AND ')}
        ORDER BY created_at DESC
-       LIMIT $2`,
-      [userId, limit]
+       LIMIT $${params.length}`,
+      params
     )
     return res.json({ notifications: rows })
   })

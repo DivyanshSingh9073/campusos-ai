@@ -41,19 +41,33 @@ export default function ActivityPage() {
           </button>
         </div>
 
-        <div className="rounded-2xl border border-white/[0.07] bg-[#111118] divide-y divide-white/[0.05] shadow-xl overflow-hidden">
-          {ACTIVITIES.map((a) => (
-            <div key={a.id} className="flex items-start gap-3 px-4 py-3">
-              <span className={`mt-0.5 shrink-0 flex h-8 w-8 items-center justify-center rounded-xl ${a.iconBg}`}>
-                <a.icon className={`w-4 h-4 ${a.iconColor}`} />
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-[#C4CDD8] leading-snug">{a.text}</p>
-                <p className="text-xs text-[#3B4558] mt-0.5">{a.time}</p>
+        {ACTIVITIES.length === 0 ? (
+          <div className="rounded-2xl border border-white/[0.07] bg-[#111118] p-6 text-center shadow-xl">
+            <p className="text-sm font-semibold text-white">No activity yet</p>
+            <p className="mt-2 text-xs text-[#64748B]">Things you do around CampusOS will show up here.</p>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-white/[0.07] bg-[#111118] px-4 py-2 shadow-xl">
+            {ACTIVITIES.map((a, i) => (
+              <div key={a.id} className="relative flex items-start gap-3 py-3">
+                {/* Timeline connector — a vertical line running behind each icon, linking it to the next */}
+                {i < ACTIVITIES.length - 1 && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute left-[19px] top-9 bottom-[-12px] w-px bg-white/[0.08]"
+                  />
+                )}
+                <span className={`relative z-10 mt-0.5 shrink-0 flex h-8 w-8 items-center justify-center rounded-xl ring-4 ring-[#111118] ${a.iconBg}`}>
+                  <a.icon className={`w-4 h-4 ${a.iconColor}`} />
+                </span>
+                <div className="flex-1 min-w-0 pb-0.5">
+                  <p className="text-sm text-[#C4CDD8] leading-snug">{a.text}</p>
+                  <p className="text-xs text-[#3B4558] mt-0.5">{a.time}</p>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         <p className="text-center text-xs text-[#4B5563]">
           That's everything for now — a full activity history is coming in a future update.

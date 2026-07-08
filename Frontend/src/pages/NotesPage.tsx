@@ -8,6 +8,8 @@ import {
   HiOutlineRefresh,
   HiOutlineDocumentText,
   HiOutlineClock,
+  HiOutlineSearch,
+  HiOutlineX,
 } from 'react-icons/hi'
 
 type Note = {
@@ -84,6 +86,15 @@ export default function NotesPage() {
   const [notes, setNotes] = useState<Note[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+
+  const filteredNotes = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return notes
+    return notes.filter(
+      (n) => n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q)
+    )
+  }, [notes, search])
 
   const fetchNotes = async () => {
     setLoading(true)
@@ -147,6 +158,30 @@ export default function NotesPage() {
           <p className="mt-1 text-sm text-[#64748B]">Your saved DBMS study notes.</p>
         </div>
 
+        {/* Search */}
+        {!loading && !error && notes.length > 0 && (
+          <div className="relative">
+            <HiOutlineSearch className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#4B5563]" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search notes…"
+              aria-label="Search notes"
+              className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-9 text-sm text-[#E2E8F0] placeholder-[#4B5563] outline-none transition-colors focus:border-[#6C63FF] focus:ring-2 focus:ring-[#6C63FF]/20"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                aria-label="Clear search"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#4B5563] hover:text-[#94A3B8] transition-colors"
+              >
+                <HiOutlineX className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Content */}
         {loading ? (
           <div className="space-y-3">
@@ -188,9 +223,17 @@ export default function NotesPage() {
               <span className="text-[#6C63FF]">[ + Create Note ]</span>
             </button>
           </div>
+        ) : filteredNotes.length === 0 ? (
+          <div className="rounded-2xl border border-white/[0.07] bg-[#111118] p-5 text-center shadow-xl">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[0.05] ring-1 ring-white/[0.08]">
+              <HiOutlineSearch className="w-5 h-5 text-[#64748B]" />
+            </div>
+            <p className="mt-4 text-sm font-semibold text-white">No matching notes</p>
+            <p className="mt-2 text-xs text-[#64748B]">Try a different search term.</p>
+          </div>
         ) : (
           <div className="space-y-3">
-            {notes.map((note) => (
+            {filteredNotes.map((note) => (
               <NoteCard key={note.id} note={note} onOpen={onOpenNote} />
             ))}
           </div>
