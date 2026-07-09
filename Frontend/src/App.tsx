@@ -12,11 +12,17 @@ import DashboardPage from "./pages/DashboardPage";
 import ProfilePage from "./pages/ProfilePage";
 import NotesPage from "./pages/NotesPage";
 import NoteEditorPage from "./pages/NoteEditorPage";
+import TasksPage from "./pages/TasksPage"; // Placeholder for Tasks
 import BottomNav from "./pages/components/BottomNav";
 
 
 
-const NAV_ROUTES = ["/dashboard", "/profile"];
+const NAV_ROUTES = [
+  "/dashboard",
+  "/profile",
+  "/notes",
+  "/tasks",
+];
 
 function Layout() {
   const { pathname } = useLocation();
@@ -31,6 +37,7 @@ function Layout() {
         <Route path="/notes" element={<NotesPage />} />
         <Route path="/notes/new" element={<NoteEditorPage />} />
         <Route path="/notes/:id" element={<NoteEditorPage />} />
+        <Route path="/tasks" element={<TasksPage />} />
 
 
         <Route path="/profile" element={<ProfilePage />} />
