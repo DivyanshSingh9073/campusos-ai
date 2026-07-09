@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "db:setup": "node scripts/db-setup.mjs"
   },
-  "dependencies": {
+  "dependencies": { 
+    "@types/node": "^22.10.1",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
