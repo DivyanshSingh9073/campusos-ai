@@ -1,117 +1,84 @@
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation } from "react-router-dom";
 import {
-  HiHome,
   HiOutlineHome,
-  HiDocumentText,
+  HiHome,
   HiOutlineDocumentText,
-  HiClipboardList,
-  HiOutlineClipboardList,
-  HiSparkles,
-  HiUser,
+  HiDocumentText,
   HiOutlineUser,
-} from 'react-icons/hi'
+  HiUser,
+  HiOutlineClipboardList,
+  HiClipboardList,
+  HiSparkles,
+} from "react-icons/hi";
+import React from "react";
 
 // ─── Tab definition ───────────────────────────────────────────────────────────
 
-type TabId = 'home' | 'notes' | 'tasks' | 'ai' | 'profile'
+type TabId = "home" | "notes" | "tasks" | "ai" | "profile";
 
 interface Tab {
-  id: TabId
-  label: string
-  path: string
-  Icon: React.ElementType
-  ActiveIcon: React.ElementType
+  id: TabId;
+  label: string;
+  path: string;
+  Icon: React.ElementType;
+  ActiveIcon: React.ElementType;
 }
 
 const TABS: Tab[] = [
-  { id: 'home',    label: 'Home',    path: '/dashboard', Icon: HiOutlineHome,          ActiveIcon: HiHome          },
-  { id: 'notes',   label: 'Notes',   path: '/notes',     Icon: HiOutlineDocumentText,  ActiveIcon: HiDocumentText  },
-  { id: 'tasks',   label: 'Tasks',   path: '/tasks',     Icon: HiOutlineClipboardList, ActiveIcon: HiClipboardList },
-  { id: 'ai',      label: 'AI',      path: '/ai',        Icon: HiSparkles,             ActiveIcon: HiSparkles      },
-  { id: 'profile', label: 'Profile', path: '/profile',   Icon: HiOutlineUser,          ActiveIcon: HiUser          },
-]
+  { id: "home",    label: "Home",    path: "/dashboard", Icon: HiOutlineHome,          ActiveIcon: HiHome          },
+  { id: "notes",   label: "Notes",   path: "/notes",     Icon: HiOutlineDocumentText,  ActiveIcon: HiDocumentText  },
+  { id: "tasks",   label: "Tasks",   path: "/tasks",     Icon: HiOutlineClipboardList, ActiveIcon: HiClipboardList },
+  { id: "ai",      label: "AI",      path: "/ai",        Icon: HiSparkles,             ActiveIcon: HiSparkles      },
+  { id: "profile", label: "Profile", path: "/profile",   Icon: HiOutlineUser,          ActiveIcon: HiUser          },
+];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function BottomNav() {
-  const navigate = useNavigate()
-  const { pathname } = useLocation()
+const BottomNav = () => {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
 
   // Derive the active tab from the current path. Prefix-matched (rather than
   // an exact-match list) so any future sub-route under a section — e.g.
   // /notes/new, /notes/:id — still highlights the right tab. /dashboard and
   // /activity (a Dashboard sub-view with no tab of its own) fall back to Home.
-  const getActiveId = (pathname: string): TabId => {
-    if (pathname.startsWith('/notes')) return 'notes'
-    if (pathname.startsWith('/tasks')) return 'tasks'
-    if (pathname.startsWith('/ai')) return 'ai'
-    if (pathname.startsWith('/profile')) return 'profile'
-    return 'home'
-  }
+  const getActiveId = (currentPath: string): TabId => {
+    if (currentPath.startsWith("/notes")) return "notes";
+    if (currentPath.startsWith("/tasks")) return "tasks";
+    if (currentPath.startsWith("/ai")) return "ai";
+    if (currentPath.startsWith("/profile")) return "profile";
+    return "home";
+  };
 
-  const activeId = getActiveId(pathname)
+  const activeId = getActiveId(pathname);
+
+  const handleNavigate = (path: string) => {
+    navigate(path);
+  };
 
   return (
-    <nav aria-label="Main navigation" className="fixed bottom-0 inset-x-0 z-50">
-      <div
-        className="mx-auto max-w-lg rounded-t-[28px] border-t border-white/[0.07] px-2 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)]"
-        style={{
-          background: 'rgba(17, 17, 24, 0.92)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-        }}
-      >
-        <ul className="flex items-end justify-around">
-          {TABS.map(tab => {
-            const isActive = tab.id === activeId
-            const isAI = tab.id === 'ai'
-
-            return (
-              <li key={tab.id} className="flex-1">
-                <button
-                  type="button"
-                  onClick={() => navigate(tab.path)}
-                  aria-current={isActive ? 'page' : undefined}
-                  aria-label={tab.label}
-                  className={`relative w-full flex flex-col items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF] focus-visible:ring-offset-1 focus-visible:ring-offset-[#111118] rounded-xl transition-all duration-200 ${isAI ? '-translate-y-3' : ''}`}
-                >
-                  {/* AI floating pill */}
-                  {isAI ? (
-                    <span className={`flex items-center justify-center w-14 h-14 rounded-2xl transition-all duration-200 ${isActive ? 'bg-[#6C63FF] shadow-lg shadow-[#6C63FF]/40' : 'bg-[#1C1C2A] border border-white/10'}`}>
-                      <tab.ActiveIcon className={`w-6 h-6 transition-colors duration-200 ${isActive ? 'text-white' : 'text-[#4B5563]'}`} />
-                      {isActive && (
-                        <span
-                          aria-hidden="true"
-                          className="absolute inset-0 rounded-2xl animate-ping"
-                          style={{ background: 'rgba(108,99,255,0.25)', animationDuration: '2s' }}
-                        />
-                      )}
-                    </span>
-                  ) : (
-                    /* Regular tab */
-                    <span className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200 ${isActive ? 'bg-[#6C63FF]/12' : ''}`}>
-                      {isActive
-                        ? <tab.ActiveIcon className="w-5 h-5 text-[#6C63FF]" />
-                        : <tab.Icon className="w-5 h-5 text-[#4B5563]" />
-                      }
-                    </span>
-                  )}
-
-                  {/* Label */}
-                  <span className={`text-[10px] font-medium leading-none transition-all duration-200 ${isAI ? (isActive ? 'text-[#A5A0FF]' : 'text-[#4B5563]') : (isActive ? 'text-[#6C63FF]' : 'text-[#4B5563]')}`}>
-                    {tab.label}
-                  </span>
-
-                  {/* Active dot — regular tabs only */}
-                  {!isAI && (
-                    <span className={`absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#6C63FF] transition-all duration-300 ${isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}`} />
-                  )}
-                </button>
-              </li>
-            )
-          })}
-        </ul>
+    <div className="fixed bottom-0 left-0 z-50 w-full h-16 bg-white border-t border-gray-200">
+      <div className="grid h-full max-w-lg grid-cols-5 mx-auto font-medium">
+        {TABS.map((item) => {
+          const isActive = activeId === item.id;
+          const IconComponent = isActive ? item.ActiveIcon : item.Icon;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => handleNavigate(item.path)}
+              className={`inline-flex flex-col items-center justify-center px-5 hover:bg-gray-50 ${
+                isActive ? "text-blue-600" : "text-gray-500"
+              }`}
+            >
+              <IconComponent className="w-6 h-6 mb-1" />
+              <span className="text-sm">{item.label}</span>
+            </button>
+          );
+        })}
       </div>
-    </nav>
-  )
-  }
+    </div>
+  );
+};
+
+export default BottomNav;

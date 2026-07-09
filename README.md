@@ -18,10 +18,10 @@ CampusOS AI is a mobile-first student productivity platform for managing notes, 
 ### Dashboard
 - At-a-glance stats (real task/note counts), quick actions, recent notifications, recent activity, upcoming tasks
 
-### Notes
+### Notes Module
 - Full CRUD, search, live loading/empty/error states
 
-### Tasks
+### Tasks Module
 - Full CRUD, search, status filter, sorting, due dates, validation
 
 ### Notifications
@@ -52,28 +52,32 @@ CampusOS AI is a mobile-first student productivity platform for managing notes, 
 
 ## 📂 Project Structure
 
-```
+```plaintext
 CampusOS-AI/
+├── Backend/                # Node.js, Express.js, PostgreSQL
+│   ├── src/
+│   │   ├── api/            # API routes and controllers
+│   │   ├── config/         # Configuration files (db, etc.)
+│   │   ├── middleware/     # Custom Express middleware
+│   │   ├── models/         # Database models
+│   │   ├── services/       # Business logic
+│   │   └── utils/          # Utility functions
+│   ├── .env.example        # Example environment variables
+│   └── package.json
 │
-├── Frontend/                  React + TypeScript + Vite app
-│   └── src/
-│       ├── pages/             One file per route (DashboardPage, NotesPage, etc.)
-│       │   └── components/    Shared UI: BottomNav, RequireAuth, Toast, Skeleton, ...
-│       ├── lib/                api.ts (typed API client), authEvents, formatting helpers
-│       └── data/               Client-side sample data (activity feed)
+├── Frontend/               # React, TypeScript, Tailwind CSS
+│   ├── src/
+│   │   ├── assets/         # Images, fonts, etc.
+│   │   ├── components/     # Reusable UI components
+│   │   ├── hooks/          # Custom React hooks
+│   │   ├── pages/          # Page components
+│   │   ├── services/       # API service calls
+│   │   ├── state/          # State management (e.g., Zustand, Redux)
+│   │   ├── styles/         # Global styles
+│   │   └── utils/          # Utility functions
+│   └── package.json
 │
-├── Backend/                   Express + TypeScript API
-│   └── src/
-│       ├── routes/            auth, notes, tasks, notifications
-│       ├── middleware/        auth, asyncHandler, rateLimit, requestLogger, error/notFound
-│       ├── lib/                Shared server-side helpers (notification creation)
-│       ├── db/                 Postgres pool + schema.sql
-│       └── config.ts           Environment variable loading + production safety checks
-│
-├── Docs/                       API reference, database notes, roadmap
-├── CHANGELOG.md                 Full phase-by-phase history
-├── RELEASE_NOTES.md             v1.0 release summary
-└── README.md                    You are here
+└── README.md
 ```
 
 ---
@@ -157,16 +161,178 @@ Documented honestly rather than hidden — these are intentional scope boundarie
 
 - **AI Assistant** has a complete, real chat UI but no AI backend yet. Replies are a clearly-labeled placeholder; wiring in a real model is a self-contained follow-up (swap one function in `AiAssistantPage.tsx`).
 - **Activity Timeline** uses sample data (`Frontend/src/data/activity.ts`) — there's no activity-log table yet. Notifications, by contrast, are fully real and backend-driven.
-- **Real-time" notifications** are 30-second polling, not push. True real-time would need WebSockets/SSE.
+- **"Real-time" notifications** are 30-second polling, not push. True real-time would need WebSockets/SSE.
 - **No avatar upload** — profile pictures use generated initials; there's no file storage in this project.
-- Full details and the phase-by-phase history are in [CHANGELOG.md](./CHANGELOG.md).
+- Full details and the phase-by-phase history are in CHANGELOG.md.
 
 ---
 
 ## 👥 Team
-- Divyansh Singh 
-- Fariza Sultana
+- Divyansh Singh
+- Fariza Sultana (Project Lead)
+
+---
+
+## 🚧 Current Status
+
+Under Development
 
 ---
 
 Built with ❤️ for Students.
+
+---
+
+## 📦 Production Build
+
+### Frontend
+
+```bash
+cd Frontend
+npm run build
+```
+The production-ready static files will be in the `Frontend/dist` directory.
+
+### Backend
+
+```bash
+cd Backend
+npm run build
+```
+The compiled JavaScript files will be in the `Backend/dist` directory. Ensure your `NODE_ENV` is set to `production` when deploying.
+- Logout
+
+---
+
+## 🛠 Tech Stack
+
+### Frontend
+- React
+- TypeScript
+- Tailwind CSS
+
+### Backend
+- Node.js
+- Express.js
+
+### Database
+- PostgreSQL
+
+### Authentication
+- JWT
+
+---
+
+## 📂 Project Structure
+
+```plaintext
+CampusOS-AI/
+├── Backend/                # Node.js, Express.js, PostgreSQL
+│   ├── src/
+│   │   ├── api/            # API routes and controllers
+│   │   ├── config/         # Configuration files (db, etc.)
+│   │   ├── middleware/     # Custom Express middleware
+│   │   ├── models/         # Database models
+│   │   ├── services/       # Business logic
+│   │   └── utils/          # Utility functions
+│   ├── .env.example        # Example environment variables
+│   └── package.json
+│
+├── Frontend/               # React, TypeScript, Tailwind CSS
+│   ├── src/
+│   │   ├── assets/         # Images, fonts, etc.
+│   │   ├── components/     # Reusable UI components
+│   │   ├── hooks/          # Custom React hooks
+│   │   ├── pages/          # Page components
+│   │   ├── services/       # API service calls
+│   │   ├── state/          # State management (e.g., Zustand, Redux)
+│   │   ├── styles/         # Global styles
+│   │   └── utils/          # Utility functions
+│   └── package.json
+│
+└── README.md
+```
+
+---
+
+## 🏁 Getting Started
+
+### Prerequisites
+
+- Node.js (v18.x or later)
+- npm or yarn
+- PostgreSQL
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/your-username/CampusOS-AI.git
+cd CampusOS-AI
+```
+
+### 2. Backend Setup
+
+```bash
+# Navigate to the backend directory
+cd Backend
+
+# Install dependencies
+npm install
+
+# Set up environment variables by copying the example file
+cp .env.example .env
+
+# Update .env with your PostgreSQL connection string and a JWT secret
+
+# Run the backend server
+npm run dev
+```
+
+### 3. Frontend Setup
+
+```bash
+# Navigate to the frontend directory
+cd ../Frontend
+
+# Install dependencies
+npm install
+
+# Run the frontend development server
+npm start
+```
+
+---
+
+## 👥 Team
+- Divyansh Singh
+- Fariza Sultana (Project Lead)
+
+---
+
+## 🚧 Current Status
+
+Under Development
+
+---
+
+Built with ❤️ for Students.
+
+---
+
+## 📦 Production Build
+
+### Frontend
+
+```bash
+cd Frontend
+npm run build
+```
+The production-ready static files will be in the `Frontend/dist` directory.
+
+### Backend
+
+```bash
+cd Backend
+npm run build
+```
+The compiled JavaScript files will be in the `Backend/dist` directory. Ensure your `NODE_ENV` is set to `production` when deploying.
