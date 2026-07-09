@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, ApiRequestError } from '../lib/api'
 import { Toast } from './components/Toast'
+import { useEscapeKey } from '../lib/useEscapeKey'
 import {
   HiOutlineArrowLeft,
   HiOutlinePlus,
@@ -160,6 +161,8 @@ export default function NoteEditorPage() {
 
   const preview = useMemo(() => clampContentPreview(content).slice(0, 60), [content])
 
+  useEscapeKey(() => setDeleteConfirmOpen(false), deleteConfirmOpen)
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0A0A0F] px-4 pt-10 pb-[calc(7rem+env(safe-area-inset-bottom))]">
@@ -289,8 +292,8 @@ export default function NoteEditorPage() {
       {deleteConfirmOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center px-4 pb-8 sm:items-center">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDeleteConfirmOpen(false)} />
-          <div className="relative w-full max-w-sm rounded-2xl border border-white/[0.08] bg-[#16161F] p-6 shadow-2xl">
-            <h3 className="text-base font-semibold text-white mb-1">Delete this note?</h3>
+          <div className="relative w-full max-w-sm rounded-2xl border border-white/[0.08] bg-[#16161F] p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="delete-note-title">
+            <h3 id="delete-note-title" className="text-base font-semibold text-white mb-1">Delete this note?</h3>
             <p className="text-sm text-[#64748B] mb-6">This action cannot be undone.</p>
             <div className="flex gap-3">
               <button

@@ -1,36 +1,20 @@
 # Roadmap
 
-## Phase 1
-✅ Login UI
+*(Updated for v1.0 — see CHANGELOG.md for the full phase-by-phase build history.)*
 
-✅ Signup UI
+## Shipped (v1.0)
+✅ Authentication (JWT, protected routes, rate limiting)
+✅ Notes (full CRUD + search)
+✅ Tasks (full CRUD + search/filter/sort)
+✅ Notifications (real backend, dropdown + full page)
+✅ Dashboard, Profile, Bottom Navigation
+✅ Production hardening (validation, error handling, security headers, docs)
 
-✅ Dashboard UI
+## Not yet started
+⏳ Real AI backend for the AI Assistant
+⏳ Real activity-log backend (Activity Timeline is currently sample data)
+⏳ Real-time notifications (WebSockets/SSE instead of polling)
+⏳ Avatar upload
+⏳ Password reset / OAuth sign-in
 
-✅ Profile UI
-
-✅ Bottom Navigation
-
----
-
-## Phase 2
-🔄 Notes Module
-
-🔄 Authentication Backend
-
----
-
-## Phase 3
-⏳ Tasks Module
-
-⏳ Database Integration
-
----
-
-## Phase 4
-⏳ AI Assistant
-
----
-
-## Phase 5
-⏳ Deployment
+See `TODO.md` for the working list.

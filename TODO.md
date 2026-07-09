@@ -1,30 +1,20 @@
-<<<<<<< HEAD
-# TODO - Registration / DB verification
-=======
-# TODO
+# TODO — Post v1.0
 
-## Backend / Frontend Integration
->>>>>>> 0243aec2cdf4248c2475a5dc4dcc6d09d9337bc5
+The bootstrapping checklist that used to live here (backend startup, DB
+verification, end-to-end registration test, fail-fast config) is complete —
+all of it shipped across Phases 1–15. This file now tracks what's honestly
+still outstanding. See `CHANGELOG.md` for full history and `RELEASE_NOTES.md`
+for the v1.0 summary.
 
-## Step 1: Understand current backend
-- [x] Inspect backend startup + routing
-- [x] Inspect auth/register implementation
+## Known gaps (all intentionally out of scope through v1.0)
+- [ ] Real AI backend for the AI Assistant (chat UI is complete and ready to wire up)
+- [ ] Real activity-log table + API (Activity Timeline currently uses sample data)
+- [ ] Real-time notifications via WebSockets/SSE (currently 30s polling)
+- [ ] Avatar upload (no file storage exists yet)
+- [ ] Password reset flow
+- [ ] Google/OAuth sign-in
 
-## Step 2: Verify DATABASE_URL + schema (no frontend edits)
-- [ ] User runs `cd campusos-ai/Backend && npm run db:setup` using DATABASE_URL from `campusos-ai/Backend/.env`
-- [ ] Paste full terminal output (success or error)
-
-## Step 3: End-to-end registration test
-- [ ] Start Backend + Frontend
-- [ ] Create a new account
-- [ ] Capture for POST `/api/auth/register`:
-  - [ ] HTTP status code
-  - [ ] Response body
-  - [ ] Backend terminal output
-
-## Backend Configuration
-
-- [ ] Inspect backend configuration and DB connection code.
-- [ ] Update `Backend/src/db/index.ts` to fail fast with a clear error if `DATABASE_URL` is missing.
-- [ ] Build backend to confirm TypeScript compiles.
-- [ ] Run backend (optional) to confirm startup behavior.
+## Nice-to-haves for a future phase
+- [ ] Shared rate-limit store (Redis) if the backend ever runs multiple instances
+- [ ] E2E test suite
+- [ ] Reconcile `Docs/Database.md` / `Docs/API.md` with the actual schema/endpoints where they still drift

@@ -1,12 +1,44 @@
-# CampusOS AI — Phase 14 Changelog
+# CampusOS AI — Changelog
+
+## Phase 15 — Release Candidate v1.0 (Stability, Polish, Documentation)
+
+**Focus:** production readiness — no large new features, per the phase brief.
+
+### Backend
+- **Security**: `config.ts` now refuses to boot when `NODE_ENV=production` if `JWT_SECRET` is still the dev default or `DATABASE_URL` is missing. Removed the committed `Backend/.env` (real secrets should never be in source control — this is the actual fix, not just a warning). Added a root `.gitignore` (there wasn't one before, which is how `.env` and `Backend/dist/` got committed in the first place).
+- **Cleanup**: removed `Backend/user.js` (dead file, unused JSONPlaceholder mock data, flagged since the original audit), removed committed `Backend/dist/` (stale build output), removed the unused `requireEnv` helper in `config.ts` (dead code — confirmed via grep, never called).
+- **Docs**: `Backend/.env.example` now includes the previously-missing `NODE_ENV` and documents the production `JWT_SECRET` requirement.
+- Verified (no changes needed — already correct): JWT signing/verification, per-request authorization (every query filters by the authenticated `user_id`), `requireAuth` applied consistently across all protected routers.
+
+### Frontend
+- **Accessibility**: all three modals (`LogoutModal`, `EditProfileModal`, NoteEditorPage's delete confirmation) now close on Escape via a new shared `useEscapeKey` hook, and carry `role="dialog"`/`aria-modal="true"`/`aria-labelledby`. The shared `Toast` component now has `role="status"`/`aria-live="polite"` so screen readers announce it.
+- **Bug fix**: Dashboard was capturing task-load errors into state but never rendering them — added a visible error banner. This was a real "missing error state" gap, not a stylistic choice.
+- **Consistency**: fixed one stray button hover-color inconsistency (`ErrorBoundary`'s button used `#7A72FF` instead of the `#7C6FFF` every other primary button in the app uses).
+
+### Documentation
+- Rewrote `README.md`: accurate feature list (previous version claimed "Upload/Download Notes" and unqualified "AI Chat Support," neither of which exist as described), full install/env/DB-setup/run/production-deploy instructions, project structure overview. Verified every documented command against the actual `package.json` scripts before writing it down.
+- Fixed `Docs/Database.md` — previously documented a `notes` table with `subject`/`file_url` columns that were never implemented, and didn't mention `notifications` or the Phase 14 `users.branch`/`users.year` columns at all. Now matches `schema.sql` exactly.
+- Fixed `Docs/API.md` — previously listed `POST /api/notes/upload` (never existed; the real endpoint is `POST /api/notes`) and was missing `PUT /api/notes/:id` and the Phase 14 `PATCH /api/auth/profile`.
+- Updated `Docs/Features.md` and `Docs/Roadmap.md` to reflect actual v1.0 state instead of a stale, generic feature list.
+- Resolved the unresolved Git merge-conflict markers in `TODO.md` (present since at least the original audit) — rewritten as an honest post-v1.0 roadmap.
+- Added `RELEASE_NOTES.md`.
+
+### Explicitly not done (and why)
+- No large new features, per the phase brief.
+- No response-envelope standardization (e.g. wrapping everything in `{ success, data }`) — would break every existing frontend call site built across Phases 10–14; the existing `{ error: string }` error shape was already consistent and is enforced project-wide via `asyncHandler` since Phase 14.
+- No deep bundle-size/render-profiling audit — no browser/build tooling available in this environment to measure it; targeted, verifiable wins (useMemo on search/filter, useCallback on polling) were kept from Phase 14, no regressions introduced.
+
+---
+
+## Phase 14 — Production Readiness & UX
 
 **Focus:** Production readiness and UX polish, continuing directly from Phase 13.
 
 ---
 
-## Backend
+### Backend
 
-### Added
+#### Added
 - `middleware/asyncHandler.ts` *(already existed from Phase 13, now applied everywhere)* — every route in `auth`, `notes`, and `tasks` is now wrapped in it. Express 4 doesn't forward async rejections to the error handler on its own; before this, a DB error in those routes would have hung as an unhandled rejection instead of returning a proper 500.
 - `middleware/requestLogger.ts` — one line per request (`METHOD path status Nms`), no new dependency.
 - `middleware/notFound.ts` / `middleware/errorHandler.ts` — extracted from inline handlers in `index.ts` for organization; behavior unchanged.
@@ -16,7 +48,7 @@
 - `users.branch`, `users.year` columns (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS` — safe against existing data).
 - `tasks_user_id_idx` index — every task query filters by `user_id`; notes already had this, tasks never did.
 
-### Changed
+#### Changed
 - `auth.routes.ts`: added email-format validation on register, name/title length caps, rate limiting on login/register. Response shapes for existing success/error cases are unchanged.
 - `notes.routes.ts` / `tasks.routes.ts`: wrapped in `asyncHandler`; added title-length validation and `due_date` format validation that were previously missing.
 - `index.ts`: now composed from the extracted middleware modules; added `helmet`'s `crossOriginResourcePolicy` option and a 1mb JSON body limit.
@@ -27,7 +59,7 @@
 
 ---
 
-## Frontend
+### Frontend
 
 ### Added
 - `pages/components/Spinner.tsx` — reusable spinner + `FullPageSpinner`.
@@ -73,7 +105,7 @@
 
 ---
 
-## Explicitly deferred / honest gaps
+### Explicitly deferred / honest gaps
 - **Real-time notifications are still polling** (30s), not push — unchanged from Phase 13; true real-time needs WebSockets/SSE, a bigger backend change intentionally out of scope here.
 - **AI Assistant has no backend** — the new chat UI is a real, reusable shell, but responses are simulated and clearly labeled as such. No claim of working AI is made anywhere in the UI copy.
 - **Activity Feed has no backend** — still `data/activity.ts` mock data; "better timestamps" there means visual polish only, not real relative-time computation (there's no real `createdAt` to compute from).

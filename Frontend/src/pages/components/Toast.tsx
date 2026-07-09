@@ -12,7 +12,11 @@ const STYLES: Record<ToastKind, { border: string; text: string }> = {
 export function Toast({ kind, text }: { kind: ToastKind; text: string }) {
   const style = STYLES[kind];
   return (
-    <div className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-50 max-w-[calc(100%-2rem)] rounded-2xl border ${style.border} px-4 py-3 shadow-xl`}>
+    <div
+      role="status"
+      aria-live="polite"
+      className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-50 max-w-[calc(100%-2rem)] rounded-2xl border ${style.border} px-4 py-3 shadow-xl`}
+    >
       <p className={`text-xs font-semibold ${style.text}`}>{text}</p>
     </div>
   );

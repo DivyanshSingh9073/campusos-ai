@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, clearToken, ApiRequestError } from "../lib/api";
 import { useNavigate } from "react-router-dom";
 import { Toast } from "./components/Toast";
+import { useEscapeKey } from "../lib/useEscapeKey";
 
 import {
   HiOutlineMail,
@@ -108,6 +109,7 @@ function SettingsRow({
 // ─── Logout modal ─────────────────────────────────────────────────────────────
 
 function LogoutModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
+  useEscapeKey(onCancel);
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center px-4 pb-8 sm:items-center">
       {/* Backdrop */}
@@ -116,8 +118,13 @@ function LogoutModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm:
         onClick={onCancel}
         aria-hidden="true"
       />
-      <div className="relative w-full max-w-sm rounded-2xl border border-white/[0.08] bg-[#16161F] p-6 shadow-2xl">
-        <h3 className="text-base font-semibold text-white mb-1">Log out?</h3>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="logout-modal-title"
+        className="relative w-full max-w-sm rounded-2xl border border-white/[0.08] bg-[#16161F] p-6 shadow-2xl"
+      >
+        <h3 id="logout-modal-title" className="text-base font-semibold text-white mb-1">Log out?</h3>
         <p className="text-sm text-[#64748B] mb-6">
           You'll need to sign in again to access your CampusOS account.
         </p>
@@ -163,6 +170,8 @@ function EditProfileModal({
   const [nameError, setNameError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  useEscapeKey(onCancel, !saving);
+
   const submit = async () => {
     const trimmed = name.trim();
     if (!trimmed) {
@@ -184,8 +193,13 @@ function EditProfileModal({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center px-4 pb-8 sm:items-center">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} aria-hidden="true" />
-      <div className="relative w-full max-w-sm rounded-2xl border border-white/[0.08] bg-[#16161F] p-6 shadow-2xl">
-        <h3 className="text-base font-semibold text-white mb-4">Edit profile</h3>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-profile-title"
+        className="relative w-full max-w-sm rounded-2xl border border-white/[0.08] bg-[#16161F] p-6 shadow-2xl"
+      >
+        <h3 id="edit-profile-title" className="text-base font-semibold text-white mb-4">Edit profile</h3>
 
         <div className="space-y-3">
           <div>

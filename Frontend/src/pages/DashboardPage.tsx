@@ -293,6 +293,13 @@ export default function DashboardPage() {
           <NotificationBell />
         </div>
 
+        {error && !loading && (
+          <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3">
+            <p className="text-xs font-semibold text-red-200">Couldn’t load your tasks</p>
+            <p className="mt-0.5 text-xs text-red-200/80">{error}</p>
+          </div>
+        )}
+
         {/* ── 1. Welcome card ─────────────────────────────────────────────── */}
         <div className="rounded-2xl border border-white/[0.07] bg-[#111118] px-5 py-5 shadow-xl overflow-hidden relative">
           {/* Inner accent line */}

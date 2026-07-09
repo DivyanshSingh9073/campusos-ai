@@ -46,7 +46,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <button
           type="button"
           onClick={this.handleReload}
-          className="rounded-xl bg-[#6C63FF] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#7A72FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF]"
+          className="rounded-xl bg-[#6C63FF] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#7C6FFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF]"
         >
           Back to Dashboard
         </button>
