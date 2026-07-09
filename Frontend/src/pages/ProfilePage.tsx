@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, clearToken, ApiRequestError } from "../lib/api";
+import { api, clearToken, ApiRequestError, type UserProfileDto } from "../lib/api";
 import { useNavigate } from "react-router-dom";
 import { Toast } from "./components/Toast";
 import { useEscapeKey } from "../lib/useEscapeKey";
@@ -18,14 +18,10 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface UserProfile {
-  id: number;
-  name: string;
-  email: string;
-  branch?: string;
-  year?: string;
-  stats?: { tasksCompleted: number; notesCreated: number; aiChats: number };
-}
+// The profile page's local view of the signed-in user is just the backend's
+// profile DTO (see lib/api.ts) — kept as a type alias rather than a
+// hand-copied interface so the two can never drift out of sync again.
+type UserProfile = UserProfileDto;
 
 interface EffectiveUser {
   name: string;
@@ -364,6 +360,11 @@ export default function ProfilePage() {
     email: profile?.email ?? DEFAULT_USER.email,
     branch: profile?.branch ?? DEFAULT_USER.branch,
     year: profile?.year ?? DEFAULT_USER.year,
+    avatar: DEFAULT_USER.avatar,
+    joinedYear: DEFAULT_USER.joinedYear,
+    tasksCompleted: DEFAULT_USER.tasksCompleted,
+    notesCreated: DEFAULT_USER.notesCreated,
+    aiChats: DEFAULT_USER.aiChats,
   };
 
   return (
@@ -462,9 +463,9 @@ export default function ProfilePage() {
         <div className="rounded-2xl border border-white/[0.07] bg-[#111118] px-6 py-5 shadow-xl">
           <p className="text-xs font-semibold text-[#4B5563] uppercase tracking-widest mb-4">Activity</p>
           <div className="flex items-center justify-around divide-x divide-white/[0.06]">
-            <StatPill value={profile?.stats?.tasksCompleted ?? 0} label="Tasks" />
-            <StatPill value={profile?.stats?.notesCreated ?? 0} label="Notes" />
-            <StatPill value={profile?.stats?.aiChats ?? 0} label="AI Chats" />
+            <StatPill value={effectiveUser.tasksCompleted} label="Tasks" />
+            <StatPill value={effectiveUser.notesCreated} label="Notes" />
+            <StatPill value={effectiveUser.aiChats} label="AI Chats" />
           </div>
         </div>
 
