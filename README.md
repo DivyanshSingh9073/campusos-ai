@@ -164,7 +164,7 @@ Documented honestly rather than hidden — these are intentional scope boundarie
 ---
 
 ## 👥 Team
-- [Your Name]
+- Divyansh Singh 
 - Fariza Sultana
 
 ---
