@@ -12,16 +12,22 @@ import DashboardPage from "./pages/DashboardPage";
 import ProfilePage from "./pages/ProfilePage";
 import NotesPage from "./pages/NotesPage";
 import NoteEditorPage from "./pages/NoteEditorPage";
-import TasksPage from "./pages/TasksPage"; // Placeholder for Tasks
+import TasksPage from "./pages/TasksPage";
+import AiAssistantPage from "./pages/AiAssistantPage";
+import ActivityPage from "./pages/ActivityPage";
+import NotificationsPage from "./pages/NotificationsPage";
 import BottomNav from "./pages/components/BottomNav";
-
-
+import RequireAuth from "./pages/components/RequireAuth";
+import AuthEventHandler from "./pages/components/AuthEventHandler";
 
 const NAV_ROUTES = [
   "/dashboard",
-  "/profile",
   "/notes",
   "/tasks",
+  "/ai",
+  "/profile",
+  "/activity",
+  "/notifications",
 ];
 
 function Layout() {
@@ -30,17 +36,86 @@ function Layout() {
 
   return (
     <>
+      {/* Reacts to 401/403/5xx events emitted by lib/api.ts — see AuthEventHandler.tsx */}
+      <AuthEventHandler />
+
       <Routes>
         <Route path="/" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/notes" element={<NotesPage />} />
-        <Route path="/notes/new" element={<NoteEditorPage />} />
-        <Route path="/notes/:id" element={<NoteEditorPage />} />
-        <Route path="/tasks" element={<TasksPage />} />
 
+        <Route
+          path="/dashboard"
+          element={
+            <RequireAuth>
+              <DashboardPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/notes"
+          element={
+            <RequireAuth>
+              <NotesPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/notes/new"
+          element={
+            <RequireAuth>
+              <NoteEditorPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/notes/:id"
+          element={
+            <RequireAuth>
+              <NoteEditorPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/tasks"
+          element={
+            <RequireAuth>
+              <TasksPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/ai"
+          element={
+            <RequireAuth>
+              <AiAssistantPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/activity"
+          element={
+            <RequireAuth>
+              <ActivityPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <RequireAuth>
+              <NotificationsPage />
+            </RequireAuth>
+          }
+        />
 
-        <Route path="/profile" element={<ProfilePage />} />
+        <Route
+          path="/profile"
+          element={
+            <RequireAuth>
+              <ProfilePage />
+            </RequireAuth>
+          }
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 

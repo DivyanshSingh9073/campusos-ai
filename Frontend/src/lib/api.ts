@@ -1,6 +1,32 @@
 import { useMemo } from 'react'
+import { emitAuthEvent } from './authEvents'
 
 export type ApiError = { error?: string; message?: string }
+
+export type NotificationType = 'task' | 'note' | 'ai' | 'general'
+
+export interface NotificationItem {
+  id: number
+  type: NotificationType
+  title: string
+  message: string | null
+  read: boolean
+  createdAt: string
+}
+
+// A request failure that carries the real HTTP status code, so callers can
+// branch on `error.status` instead of guessing from `error.message` text.
+export class ApiRequestError extends Error {
+  status: number
+  payload?: ApiError
+
+  constructor(status: number, message: string, payload?: ApiError) {
+    super(message)
+    this.name = 'ApiRequestError'
+    this.status = status
+    this.payload = payload
+  }
+}
 
 // ─── Token storage ────────────────────────────────────────────────────────────
 
@@ -63,13 +89,35 @@ async function request<T>(
   if (!res.ok) {
     const payload = data as ApiError
     const message = payload?.error || payload?.message || `Request failed: ${res.status}`
-    throw new Error(message)
+
+    // Only requests that were actually sent with a token can mean "your
+    // session is invalid" — an 401 from an unauthenticated call (e.g. a
+    // wrong password on /auth/login) is just a normal form error and must
+    // not clear tokens or redirect anyone.
+    if (auth && res.status === 401) {
+      clearToken()
+      emitAuthEvent({ type: 'unauthorized', message })
+    } else if (auth && res.status === 403) {
+      emitAuthEvent({ type: 'forbidden', message })
+    } else if (res.status >= 500) {
+      emitAuthEvent({ type: 'server-error', message })
+    }
+
+    throw new ApiRequestError(res.status, message, payload)
   }
 
   return data as T
 }
 
 // ─── API surface ──────────────────────────────────────────────────────────────
+
+export interface UserProfileDto {
+  id: number
+  name: string
+  email: string
+  branch?: string | null
+  year?: string | null
+}
 
 export const api = {
   auth: {
@@ -85,9 +133,16 @@ export const api = {
     },
 
     profile() {
-      return request<{ user: { id: number; name: string; email: string } }>('/auth/profile', {
+      return request<{ user: UserProfileDto }>('/auth/profile', {
         method: 'GET',
         auth: true,
+      })
+    },
+
+    updateProfile(body: { name?: string; branch?: string; year?: string }) {
+      return request<{ user: UserProfileDto }>('/auth/profile', {
+        method: 'PATCH',
+        body,
       })
     },
   },
@@ -152,6 +207,36 @@ export const api = {
 
     delete(id: number) {
       return request<void>(`/notes/${id}`, { method: 'DELETE' })
+    },
+  },
+
+  notifications: {
+    list(opts?: { limit?: number; type?: NotificationType; unreadOnly?: boolean }) {
+      const params = new URLSearchParams()
+      if (opts?.limit) params.set('limit', String(opts.limit))
+      if (opts?.type) params.set('type', opts.type)
+      if (opts?.unreadOnly) params.set('unread', 'true')
+      const qs = params.toString()
+      return request<{ notifications: NotificationItem[] }>(
+        `/notifications${qs ? `?${qs}` : ''}`,
+        { method: 'GET' }
+      )
+    },
+
+    unreadCount() {
+      return request<{ count: number }>('/notifications/unread-count', { method: 'GET' })
+    },
+
+    markRead(id: number) {
+      return request<{ notification: NotificationItem }>(`/notifications/${id}/read`, { method: 'PATCH' })
+    },
+
+    markAllRead() {
+      return request<{ updated: number }>('/notifications/read-all', { method: 'PATCH' })
+    },
+
+    delete(id: number) {
+      return request<void>(`/notifications/${id}`, { method: 'DELETE' })
     },
   },
 }
