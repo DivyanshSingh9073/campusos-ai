@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, clearToken } from '../lib/api'
+import { api, ApiRequestError } from '../lib/api'
+import { formatRelativeTime } from '../lib/formatRelativeTime'
 
 import {
   HiOutlinePlus,
   HiOutlineRefresh,
   HiOutlineDocumentText,
   HiOutlineClock,
+  HiOutlineSearch,
+  HiOutlineX,
 } from 'react-icons/hi'
 
 type Note = {
@@ -21,21 +24,6 @@ function clampPreview(text: string) {
   const normalized = (text ?? '').replace(/\s+/g, ' ').trim()
   if (!normalized) return ''
   return normalized
-}
-
-function formatRelativeUpdated(isoOrDate?: string | null) {
-  if (!isoOrDate) return 'Updated recently'
-
-  const d = new Date(isoOrDate)
-
-  if (Number.isNaN(d.getTime())) return 'Updated recently'
-
-  const diffMs = Date.now() - d.getTime()
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-  if (diffHours < 1) return `Updated ${Math.max(1, Math.floor(diffMs / (1000 * 60)))} min ago`
-  if (diffHours < 24) return `Updated ${diffHours} hours ago`
-  const diffDays = Math.floor(diffHours / 24)
-  return `Updated ${diffDays} days ago`
 }
 
 function SkeletonCard() {
@@ -73,7 +61,7 @@ function NoteCard({ note, onOpen }: { note: Note; onOpen: (id: number) => void }
 
           <div className="mt-2 flex items-center gap-1 text-xs text-[#94A3B8]">
             <HiOutlineClock className="w-3.5 h-3.5" />
-            <span>{formatRelativeUpdated(null)}</span>
+            <span>Updated {formatRelativeTime(note.updatedAt)}</span>
           </div>
         </div>
       </div>
@@ -98,6 +86,15 @@ export default function NotesPage() {
   const [notes, setNotes] = useState<Note[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+
+  const filteredNotes = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return notes
+    return notes.filter(
+      (n) => n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q)
+    )
+  }, [notes, search])
 
   const fetchNotes = async () => {
     setLoading(true)
@@ -112,16 +109,13 @@ export default function NotesPage() {
       }))
       setNotes(mapped)
 
-    } catch (e: any) {
-      const msg = String(e?.message ?? e)
-      setError(msg)
+    } catch (e: unknown) {
+      // A 401 means api.ts already cleared the token and the global
+      // AuthEventHandler (see App.tsx) is already redirecting to Login —
+      // skip showing an inline error while that happens.
+      if (e instanceof ApiRequestError && e.status === 401) return
 
-      // If token is invalid, redirect to login.
-      const m = msg.toLowerCase()
-      if (m.includes('token') || m.includes('authorization') || m.includes('unauthorized') || msg.includes('401')) {
-        clearToken()
-        navigate('/', { replace: true })
-      }
+      setError(e instanceof Error ? e.message : String(e))
     } finally {
       setLoading(false)
     }
@@ -164,6 +158,30 @@ export default function NotesPage() {
           <p className="mt-1 text-sm text-[#64748B]">Your saved DBMS study notes.</p>
         </div>
 
+        {/* Search */}
+        {!loading && !error && notes.length > 0 && (
+          <div className="relative">
+            <HiOutlineSearch className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#4B5563]" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search notes…"
+              aria-label="Search notes"
+              className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-9 text-sm text-[#E2E8F0] placeholder-[#4B5563] outline-none transition-colors focus:border-[#6C63FF] focus:ring-2 focus:ring-[#6C63FF]/20"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                aria-label="Clear search"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#4B5563] hover:text-[#94A3B8] transition-colors"
+              >
+                <HiOutlineX className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Content */}
         {loading ? (
           <div className="space-y-3">
@@ -205,9 +223,17 @@ export default function NotesPage() {
               <span className="text-[#6C63FF]">[ + Create Note ]</span>
             </button>
           </div>
+        ) : filteredNotes.length === 0 ? (
+          <div className="rounded-2xl border border-white/[0.07] bg-[#111118] p-5 text-center shadow-xl">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[0.05] ring-1 ring-white/[0.08]">
+              <HiOutlineSearch className="w-5 h-5 text-[#64748B]" />
+            </div>
+            <p className="mt-4 text-sm font-semibold text-white">No matching notes</p>
+            <p className="mt-2 text-xs text-[#64748B]">Try a different search term.</p>
+          </div>
         ) : (
           <div className="space-y-3">
-            {notes.map((note) => (
+            {filteredNotes.map((note) => (
               <NoteCard key={note.id} note={note} onOpen={onOpenNote} />
             ))}
           </div>

@@ -12,13 +12,6 @@ const env = {
   CORS_ORIGIN: process.env.CORS_ORIGIN ?? 'http://localhost:5173'
 }
 
-function requireEnv(name: keyof typeof env) {
-  if (!env[name] || (typeof env[name] === 'string' && env[name].trim().length === 0)) {
-    throw new Error(`Missing required env var: ${String(name)}`)
-  }
-  return env[name]
-}
-
 export const config = {
   NODE_ENV: env.NODE_ENV,
   PORT: env.PORT,
@@ -27,6 +20,18 @@ export const config = {
   JWT_SECRET: env.JWT_SECRET,
   JWT_EXPIRES_IN: env.JWT_EXPIRES_IN,
   CORS_ORIGIN: env.CORS_ORIGIN
+}
+
+// Fail fast rather than silently run an insecure production deployment.
+if (config.NODE_ENV === 'production') {
+  if (config.JWT_SECRET === 'dev-secret-change-me') {
+    throw new Error(
+      'JWT_SECRET is still set to the development default. Set a long, random JWT_SECRET before running in production.'
+    )
+  }
+  if (!config.DATABASE_URL) {
+    throw new Error('DATABASE_URL is required in production.')
+  }
 }
 
 

@@ -56,36 +56,57 @@ Instead:
 
 ## Database Schema
 
+*(Source of truth: `Backend/src/db/schema.sql`. This table is kept in sync with it — previously it described columns, like `notes.subject`/`notes.file_url`, that were never actually implemented.)*
+
 ## users
 
-| Column | Type |
-|----------|------|
-| id | INTEGER |
-| name | VARCHAR |
-| email | VARCHAR |
-| password_hash | TEXT |
+| Column | Type | Notes |
+|----------|------|-------|
+| id | SERIAL PK | |
+| name | VARCHAR(255) | |
+| email | VARCHAR(255) | UNIQUE |
+| password_hash | TEXT | |
+| branch | VARCHAR(100) | nullable, added Phase 14 |
+| year | VARCHAR(50) | nullable, added Phase 14 |
 
 ---
 
 ## notes
 
-| Column | Type |
-|----------|------|
-| id | INTEGER |
-| title | VARCHAR |
-| subject | VARCHAR |
-| file_url | TEXT |
-| user_id | INTEGER |
+| Column | Type | Notes |
+|----------|------|-------|
+| id | SERIAL PK | |
+| user_id | INTEGER | FK → users(id), indexed |
+| title | VARCHAR(255) | |
+| content | TEXT | |
+| created_at | TIMESTAMPTZ | default now() |
+| updated_at | TIMESTAMPTZ | default now(), bumped on edit |
 
 ---
 
 ## tasks
 
-| Column | Type |
-|----------|------|
-| id | INTEGER |
-| title | VARCHAR |
-| due_date | DATE |
-| completed | BOOLEAN |
-| user_id | INTEGER |
+| Column | Type | Notes |
+|----------|------|-------|
+| id | SERIAL PK | |
+| title | VARCHAR(255) | |
+| due_date | DATE | nullable |
+| completed | BOOLEAN | default false |
+| user_id | INTEGER | FK → users(id), indexed (added Phase 14) |
+
+---
+
+## notifications
+
+*(added Phase 13)*
+
+| Column | Type | Notes |
+|----------|------|-------|
+| id | SERIAL PK | |
+| user_id | INTEGER | FK → users(id), indexed (also indexed with `is_read` for the unread-count query) |
+| type | VARCHAR(50) | `task` \| `note` \| `ai` \| `general` |
+| title | VARCHAR(255) | |
+| message | TEXT | nullable |
+| is_read | BOOLEAN | default false |
+| created_at | TIMESTAMPTZ | default now() |
 

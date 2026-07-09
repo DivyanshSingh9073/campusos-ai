@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
-import { api, clearToken } from "../lib/api";
 import { useNavigate } from "react-router-dom";
+import { api, ApiRequestError, type NotificationItem } from "../lib/api";
+import { ACTIVITIES } from "../data/activity";
+import { formatRelativeTime } from "../lib/formatRelativeTime";
+import NotificationBell from "./components/NotificationBell";
+import { SkeletonRow } from "./components/Skeleton";
 
 
 
@@ -17,6 +21,7 @@ import {
   HiOutlineFire,
   HiCheckCircle,
   HiOutlineBookOpen,
+  HiOutlineBell,
 } from "react-icons/hi";
 
 interface UserProfile {
@@ -37,16 +42,6 @@ interface Task {
   done: boolean;
 }
 
-
-interface Activity {
-  id: number;
-  icon: React.ElementType;
-  iconColor: string;
-  iconBg: string;
-  text: string;
-  time: string;
-}
-
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
 const USER_FALLBACK = {
@@ -59,20 +54,10 @@ const USER_FALLBACK = {
   aiChats: 0,
 };
 
-const TASKS: Task[] = [
-  { id: 1, title: "Submit OS Assignment",      due: "Today, 11:59 PM", done: false },
-  { id: 2, title: "DBMS Lab Report",           due: "Tomorrow, 9 AM",  done: false },
-  { id: 3, title: "DSA Practice — Trees",      due: "Wed, 6 PM",       done: false },
-  { id: 4, title: "CN Module 3 Notes",         due: "Thu, 5 PM",       done: true },
-];
-
-
-const ACTIVITIES: Activity[] = [
-  { id: 1, icon: HiOutlineDocumentText, iconColor: "text-[#6C63FF]", iconBg: "bg-[#6C63FF]/12", text: "Added notes for Data Structures",     time: "2 min ago"  },
-  { id: 2, icon: HiSparkles,            iconColor: "text-amber-400", iconBg: "bg-amber-400/10", text: "AI summarised OS Module 4",            time: "1 hr ago"   },
-  { id: 3, icon: HiCheckCircle,         iconColor: "text-green-400", iconBg: "bg-green-400/10", text: "Marked CN Notes as complete",          time: "3 hrs ago"  },
-  { id: 4, icon: HiOutlineClipboardList,iconColor: "text-sky-400",   iconBg: "bg-sky-400/10",   text: "Created assignment: DBMS Lab Report",  time: "Yesterday"  },
-];
+// (Phase 14: removed the hardcoded mock TASKS array that used to seed
+// initial state — it caused a brief flash of fake tasks before the real
+// list loaded. The Upcoming Tasks section now shows a proper skeleton
+// instead while loading.)
 
 
 
@@ -89,21 +74,24 @@ function getGreeting() {
   return "Good evening";
 }
 
-/** True if an error message looks like an auth failure (expired/invalid/missing token). */
-function isAuthError(message: string): boolean {
-  const m = message.toLowerCase();
-  return m.includes("token") || m.includes("authorization") || m.includes("unauthorized") || m.includes("401");
-}
-
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function SectionHeader({ title, action }: { title: string; action?: string }) {
+function SectionHeader({
+  title,
+  action,
+  onAction,
+}: {
+  title: string;
+  action?: string;
+  onAction?: () => void;
+}) {
   return (
     <div className="flex items-center justify-between mb-3">
       <h2 className="text-sm font-semibold text-[#94A3B8] uppercase tracking-widest">{title}</h2>
       {action && (
         <button
           type="button"
+          onClick={onAction}
           className="flex items-center gap-0.5 text-xs text-[#6C63FF] hover:text-[#A5A0FF] transition-colors focus-visible:outline-none focus-visible:underline"
         >
           {action} <HiOutlineChevronRight className="w-3 h-3" />
@@ -119,16 +107,19 @@ function QuickActionCard({
   sub,
   accent,
   glow,
+  onClick,
 }: {
   icon: React.ElementType;
   label: string;
   sub: string;
   accent: string;
   glow: string;
+  onClick?: () => void;
 }) {
   return (
     <button
       type="button"
+      onClick={onClick}
       className="group relative flex flex-col items-start gap-3 rounded-2xl border border-white/[0.07] bg-[#111118] p-4 text-left shadow-lg transition-all hover:border-white/[0.12] hover:bg-[#16161F] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF] overflow-hidden"
     >
       {/* Hover glow */}
@@ -188,11 +179,14 @@ function TaskRow({ task, onToggle }: { task: Task; onToggle: (id: number) => voi
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const [tasks, setTasks] = useState<Task[]>(TASKS);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState(USER_FALLBACK);
+  const [notesCount, setNotesCount] = useState<number | null>(null);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
@@ -207,8 +201,10 @@ export default function DashboardPage() {
             ...(p.user.stats ?? {}),
           }));
         }
-      } catch (e: any) {
-        // If token is invalid, existing tasks call will surface 401 and handle redirect.
+      } catch {
+        // Non-fatal here: if the token is actually invalid, the tasks call
+        // right below will get the 401 and the global AuthEventHandler
+        // (see App.tsx) will clear the token and redirect to Login.
       }
     
       try {
@@ -223,11 +219,33 @@ export default function DashboardPage() {
         }));
 
         if (mounted) setTasks(mapped);
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (!mounted) return;
-        setError(String(e?.message ?? e));
+        // 401s are handled centrally (token cleared + redirect in flight);
+        // avoid flashing an inline error while that happens.
+        if (e instanceof ApiRequestError && e.status === 401) return;
+        setError(e instanceof Error ? e.message : String(e));
       } finally {
         if (mounted) setLoading(false);
+      }
+
+      // 3) Real notes count for the stats card — the backend never actually
+      // populates profile.stats, so this was always hardcoded to 0 before.
+      try {
+        const notesRes = await api.notes.list();
+        if (mounted) setNotesCount(notesRes.notes.length);
+      } catch {
+        // Non-fatal — stats card just falls back to showing 0.
+      }
+
+      // 4) Recent notifications preview for the dashboard card.
+      try {
+        const notifRes = await api.notifications.list({ limit: 3 });
+        if (mounted) setNotifications(notifRes.notifications);
+      } catch {
+        // Non-fatal — section just renders its empty state.
+      } finally {
+        if (mounted) setNotificationsLoading(false);
       }
     })();
     return () => {
@@ -242,13 +260,12 @@ export default function DashboardPage() {
 
     try {
       await api.tasks.update(id, { completed: nextCompleted });
-    } catch (e: any) {
-      // revert on failure
+    } catch (e: unknown) {
+      // revert the optimistic update on failure
       setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: !nextCompleted } : t)));
-      if (String(e?.message ?? '').toLowerCase().includes('token') || String(e?.message ?? '').includes('Authorization')) {
-        clearToken();
-        navigate('/', { replace: true });
-      }
+      // If it was a 401, api.ts already cleared the token and the global
+      // AuthEventHandler is already redirecting to Login — nothing else to do.
+      void e;
     }
   };
 
@@ -270,6 +287,18 @@ export default function DashboardPage() {
       />
 
       <div className="relative mx-auto max-w-sm space-y-5">
+
+        {/* ── 0. Top bar ──────────────────────────────────────────────────── */}
+        <div className="flex items-center justify-end">
+          <NotificationBell />
+        </div>
+
+        {error && !loading && (
+          <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3">
+            <p className="text-xs font-semibold text-red-200">Couldn’t load your tasks</p>
+            <p className="mt-0.5 text-xs text-red-200/80">{error}</p>
+          </div>
+        )}
 
         {/* ── 1. Welcome card ─────────────────────────────────────────────── */}
         <div className="rounded-2xl border border-white/[0.07] bg-[#111118] px-5 py-5 shadow-xl overflow-hidden relative">
@@ -306,9 +335,9 @@ export default function DashboardPage() {
           {/* Mini stats */}
           <div className="mt-4 grid grid-cols-3 gap-2">
             {[
-              { value: stats.tasksCompleted, label: "Tasks done" },
-              { value: stats.notesCreated,   label: "Notes" },
-              { value: stats.aiChats,        label: "AI chats" },
+              { value: loading ? "–" : tasks.filter((t) => t.done).length, label: "Tasks done" },
+              { value: notesCount === null ? "–" : notesCount,             label: "Notes" },
+              { value: stats.aiChats,                       label: "AI chats" },
             ].map(({ value, label }) => (
               <div
                 key={label}
@@ -353,9 +382,10 @@ export default function DashboardPage() {
             <QuickActionCard
               icon={HiOutlineDocumentText}
               label="Notes"
-              sub={`${stats.notesCreated} notes saved`}
+              sub={`${notesCount ?? 0} notes saved`}
               accent="#6C63FF"
               glow="radial-gradient(ellipse at top left, rgba(108,99,255,0.12), transparent 70%)"
+              onClick={() => navigate("/notes")}
             />
             <QuickActionCard
               icon={HiOutlineClipboardList}
@@ -363,6 +393,7 @@ export default function DashboardPage() {
               sub={`${pendingCount} pending`}
               accent="#F59E0B"
               glow="radial-gradient(ellipse at top left, rgba(245,158,11,0.10), transparent 70%)"
+              onClick={() => navigate("/tasks")}
             />
             <div className="col-span-2">
               <QuickActionCard
@@ -371,14 +402,49 @@ export default function DashboardPage() {
                 sub="Ask anything — summaries, explanations, quizzes"
                 accent="#A78BFA"
                 glow="radial-gradient(ellipse at top left, rgba(167,139,250,0.12), transparent 70%)"
+                onClick={() => navigate("/ai")}
               />
             </div>
           </div>
         </div>
 
-        {/* ── 4. Recent activity ──────────────────────────────────────────── */}
+        {/* ── 4. Recent notifications ─────────────────────────────────────── */}
         <div>
-          <SectionHeader title="Recent Activity" action="See all" />
+          <SectionHeader title="Recent Notifications" action="See all" onAction={() => navigate("/notifications")} />
+          {notificationsLoading ? (
+            <div className="rounded-2xl border border-white/[0.07] bg-[#111118] divide-y divide-white/[0.05] shadow-xl overflow-hidden">
+              <SkeletonRow />
+              <SkeletonRow />
+              <SkeletonRow />
+            </div>
+          ) : notifications.length === 0 ? (
+            <div className="rounded-2xl border border-white/[0.07] bg-[#111118] px-4 py-6 text-center shadow-xl">
+              <p className="text-xs text-[#64748B]">No notifications yet</p>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-white/[0.07] bg-[#111118] divide-y divide-white/[0.05] shadow-xl overflow-hidden">
+              {notifications.map((n) => (
+                <div key={n.id} className="flex items-start gap-3 px-4 py-3">
+                  <span
+                    className={`mt-0.5 shrink-0 flex h-8 w-8 items-center justify-center rounded-xl ${
+                      !n.read ? "bg-[#6C63FF]/12" : "bg-white/[0.04]"
+                    }`}
+                  >
+                    <HiOutlineBell className={`w-4 h-4 ${!n.read ? "text-[#6C63FF]" : "text-[#64748B]"}`} />
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-[#C4CDD8] leading-snug">{n.title}</p>
+                    <p className="text-xs text-[#3B4558] mt-0.5">{formatRelativeTime(n.createdAt)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── 5. Recent activity ──────────────────────────────────────────── */}
+        <div>
+          <SectionHeader title="Recent Activity" action="See all" onAction={() => navigate("/activity")} />
           <div className="rounded-2xl border border-white/[0.07] bg-[#111118] divide-y divide-white/[0.05] shadow-xl overflow-hidden">
             {ACTIVITIES.map((a) => (
               <div key={a.id} className="flex items-start gap-3 px-4 py-3">
@@ -394,18 +460,32 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ── 5. Upcoming tasks ───────────────────────────────────────────── */}
+        {/* ── 6. Upcoming tasks ───────────────────────────────────────────── */}
         <div>
-          <SectionHeader title="Upcoming Tasks" action="Add task" />
-          <div className="rounded-2xl border border-white/[0.07] bg-[#111118] px-4 shadow-xl">
-            {tasks.map((task) => (
-              <TaskRow key={task.id} task={task} onToggle={toggleTask} />
-            ))}
-          </div>
-          {pendingCount === 0 && (
-            <p className="mt-3 text-center text-xs text-green-400 font-medium">
-              🎉 All tasks done!
-            </p>
+          <SectionHeader title="Upcoming Tasks" action="Add task" onAction={() => navigate("/tasks")} />
+          {loading ? (
+            <div className="rounded-2xl border border-white/[0.07] bg-[#111118] divide-y divide-white/[0.05] shadow-xl overflow-hidden">
+              <SkeletonRow />
+              <SkeletonRow />
+              <SkeletonRow />
+            </div>
+          ) : tasks.length === 0 ? (
+            <div className="rounded-2xl border border-white/[0.07] bg-[#111118] px-4 py-6 text-center shadow-xl">
+              <p className="text-xs text-[#64748B]">No tasks yet — add one to get started.</p>
+            </div>
+          ) : (
+            <>
+              <div className="rounded-2xl border border-white/[0.07] bg-[#111118] px-4 shadow-xl">
+                {tasks.map((task) => (
+                  <TaskRow key={task.id} task={task} onToggle={toggleTask} />
+                ))}
+              </div>
+              {pendingCount === 0 && (
+                <p className="mt-3 text-center text-xs text-green-400 font-medium">
+                  🎉 All tasks done!
+                </p>
+              )}
+            </>
           )}
         </div>
 

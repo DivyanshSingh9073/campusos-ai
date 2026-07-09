@@ -7,6 +7,11 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL
 );
 
+-- Phase 14: profile fields (nullable — existing users simply show "Not set"
+-- until they fill these in via the new Edit Profile flow)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS branch VARCHAR(100);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS year VARCHAR(50);
+
 CREATE TABLE IF NOT EXISTS notes (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -26,4 +31,20 @@ CREATE TABLE IF NOT EXISTS tasks (
   completed BOOLEAN NOT NULL DEFAULT FALSE,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
 );
+
+CREATE INDEX IF NOT EXISTS tasks_user_id_idx ON tasks(user_id);
+
+-- Phase 13: Notifications
+CREATE TABLE IF NOT EXISTS notifications (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type VARCHAR(50) NOT NULL DEFAULT 'general',
+  title VARCHAR(255) NOT NULL,
+  message TEXT,
+  is_read BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS notifications_user_id_idx ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS notifications_user_unread_idx ON notifications(user_id, is_read);
 

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { api, clearToken } from "../lib/api";
+import { api, clearToken, ApiRequestError } from "../lib/api";
 import { useNavigate } from "react-router-dom";
+import { Toast } from "./components/Toast";
+import { useEscapeKey } from "../lib/useEscapeKey";
 
 import {
   HiOutlineMail,
@@ -12,7 +14,6 @@ import {
   HiOutlineBell,
   HiOutlineChevronRight,
   HiSparkles,
-  HiCheckCircle,
 } from "react-icons/hi";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -64,12 +65,6 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
-/** True if an error message looks like an auth failure (expired/invalid/missing token). */
-function isAuthError(message: string): boolean {
-  const m = message.toLowerCase();
-  return m.includes("token") || m.includes("authorization") || m.includes("unauthorized") || m.includes("401");
-}
-
 // ─── Stat card ────────────────────────────────────────────────────────────────
 
 function StatPill({ value, label }: { value: number; label: string }) {
@@ -114,6 +109,7 @@ function SettingsRow({
 // ─── Logout modal ─────────────────────────────────────────────────────────────
 
 function LogoutModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
+  useEscapeKey(onCancel);
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center px-4 pb-8 sm:items-center">
       {/* Backdrop */}
@@ -122,8 +118,13 @@ function LogoutModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm:
         onClick={onCancel}
         aria-hidden="true"
       />
-      <div className="relative w-full max-w-sm rounded-2xl border border-white/[0.08] bg-[#16161F] p-6 shadow-2xl">
-        <h3 className="text-base font-semibold text-white mb-1">Log out?</h3>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="logout-modal-title"
+        className="relative w-full max-w-sm rounded-2xl border border-white/[0.08] bg-[#16161F] p-6 shadow-2xl"
+      >
+        <h3 id="logout-modal-title" className="text-base font-semibold text-white mb-1">Log out?</h3>
         <p className="text-sm text-[#64748B] mb-6">
           You'll need to sign in again to access your CampusOS account.
         </p>
@@ -148,25 +149,155 @@ function LogoutModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm:
   );
 }
 
+// ─── Edit profile modal ───────────────────────────────────────────────────────
+
+function EditProfileModal({
+  initialName,
+  initialBranch,
+  initialYear,
+  onCancel,
+  onSave,
+}: {
+  initialName: string;
+  initialBranch: string;
+  initialYear: string;
+  onCancel: () => void;
+  onSave: (values: { name: string; branch: string; year: string }) => Promise<void>;
+}) {
+  const [name, setName] = useState(initialName);
+  const [branch, setBranch] = useState(initialBranch === "Not set" ? "" : initialBranch);
+  const [year, setYear] = useState(initialYear === "Not set" ? "" : initialYear);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEscapeKey(onCancel, !saving);
+
+  const submit = async () => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setNameError("Name is required");
+      return;
+    }
+    if (trimmed.length > 255) {
+      setNameError("Name must be 255 characters or fewer");
+      return;
+    }
+    setSaving(true);
+    try {
+      await onSave({ name: trimmed, branch: branch.trim(), year: year.trim() });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center px-4 pb-8 sm:items-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} aria-hidden="true" />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-profile-title"
+        className="relative w-full max-w-sm rounded-2xl border border-white/[0.08] bg-[#16161F] p-6 shadow-2xl"
+      >
+        <h3 id="edit-profile-title" className="text-base font-semibold text-white mb-4">Edit profile</h3>
+
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-semibold text-[#94A3B8]">Name</label>
+            <input
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (nameError) setNameError(null);
+              }}
+              placeholder="Your name"
+              className={`mt-1 w-full rounded-xl border bg-white/5 px-4 py-2.5 text-sm text-[#E2E8F0] placeholder-[#3B4558] outline-none transition-colors focus:border-[#6C63FF] focus:ring-2 focus:ring-[#6C63FF]/20 ${
+                nameError ? "border-red-500/60" : "border-white/10"
+              }`}
+            />
+            {nameError && <p className="mt-1.5 text-xs text-red-400">{nameError}</p>}
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-[#94A3B8]">Branch</label>
+            <input
+              value={branch}
+              onChange={(e) => setBranch(e.target.value)}
+              placeholder="e.g., Computer Science"
+              maxLength={100}
+              className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-[#E2E8F0] placeholder-[#3B4558] outline-none transition-colors focus:border-[#6C63FF] focus:ring-2 focus:ring-[#6C63FF]/20"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-[#94A3B8]">Year</label>
+            <input
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
+              placeholder="e.g., 3rd Year"
+              maxLength={50}
+              className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-[#E2E8F0] placeholder-[#3B4558] outline-none transition-colors focus:border-[#6C63FF] focus:ring-2 focus:ring-[#6C63FF]/20"
+            />
+          </div>
+        </div>
+
+        <div className="mt-6 flex gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={saving}
+            className="flex-1 rounded-xl border border-white/10 bg-white/5 py-2.5 text-sm font-medium text-[#94A3B8] hover:bg-white/10 transition-colors disabled:opacity-60"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={saving}
+            className="flex-1 rounded-xl bg-[#6C63FF] py-2.5 text-sm font-semibold text-white hover:bg-[#7C6FFF] transition-colors disabled:opacity-60"
+          >
+            {saving ? "Saving…" : "Save changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
   const navigate = useNavigate();
   const [showLogout, setShowLogout] = useState(false);
-  const [editToast, setEditToast] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [toast, setToast] = useState<{ kind: "success" | "error" | "info"; text: string } | null>(null);
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!toast) return;
+    const t = window.setTimeout(() => setToast(null), 2500);
+    return () => window.clearTimeout(t);
+  }, [toast]);
 
-  const handleEdit = () => {
-    setEditToast(true);
-    setTimeout(() => setEditToast(false), 2500);
+  const handleSaveProfile = async (values: { name: string; branch: string; year: string }) => {
+    try {
+      const res = await api.auth.updateProfile(values);
+      setProfile(res.user);
+      setShowEditModal(false);
+      setToast({ kind: "success", text: "Profile updated" });
+    } catch (e: unknown) {
+      if (e instanceof ApiRequestError && e.status === 401) return;
+      setToast({ kind: "error", text: e instanceof Error ? e.message : "Couldn’t update profile" });
+    }
   };
 
   const handleLogout = () => {
     setShowLogout(false);
+    clearToken();
+    setProfile(null);
     navigate("/", { replace: true });
   };
 
@@ -180,20 +311,15 @@ export default function ProfilePage() {
         if (!mounted) return;
         setProfile(res.user);
       } catch (e: unknown) {
-
-        const message =
-          e instanceof Error
-            ? e.message
-            : "Unknown error";
-
-        // Invalid/expired/missing token — send the user back to login.
-        // Never fall back to showing stale or another user's profile.
-        if (isAuthError(message)) {
-          clearToken();
-          navigate("/", { replace: true });
+        // A 401 here means api.ts already cleared the token and emitted an
+        // 'unauthorized' event — AuthEventHandler (mounted in App.tsx) is
+        // already redirecting to Login. Skip setting a local error so the
+        // page doesn't flash "Something went wrong" mid-redirect.
+        if (e instanceof ApiRequestError && e.status === 401) {
           return;
         }
 
+        const message = e instanceof Error ? e.message : "Unknown error";
         setError(message);
       } finally {
         if (mounted) setLoading(false);
@@ -202,7 +328,7 @@ export default function ProfilePage() {
     return () => {
       mounted = false;
     };
-  }, [navigate]);
+  }, []);
 
 
   if (loading) {
@@ -222,9 +348,7 @@ export default function ProfilePage() {
             <HiOutlineLogout className="w-7 h-7 text-[#64748B]" />
           </div>
           <p className="text-white font-semibold text-lg mb-1">Something went wrong</p>
-          <p className="text-sm text-[#4B5563]">
-            {isAuthError(error) ? 'Your session expired. Please sign in again.' : 'Could not load your profile.'}
-          </p>
+          <p className="text-sm text-[#4B5563]">Could not load your profile.</p>
 
         </div>
       </div>
@@ -232,9 +356,9 @@ export default function ProfilePage() {
   }
 
   // Merge the safe defaults with whatever the backend actually returned.
-  // Only fields present on `profile` override the defaults — branch, year,
-  // avatar, and the stats are not yet returned by the backend, so they
-  // always fall back to DEFAULT_USER until the API supports them.
+  // branch/year are populated by the backend as of Phase 14; avatar and the
+  // stats object are still not returned, so those continue to fall back to
+  // DEFAULT_USER until a real endpoint exists for them.
   const effectiveUser: EffectiveUser = {
     name: profile?.name ?? DEFAULT_USER.name,
     email: profile?.email ?? DEFAULT_USER.email,
@@ -317,7 +441,7 @@ export default function ProfilePage() {
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={handleEdit}
+              onClick={() => setShowEditModal(true)}
               className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 py-2.5 text-sm font-medium text-[#E2E8F0] hover:bg-white/10 transition-colors active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF]"
             >
               <HiOutlinePencil className="w-4 h-4" />
@@ -347,8 +471,12 @@ export default function ProfilePage() {
         {/* ── Settings card ── */}
         <div className="rounded-2xl border border-white/[0.07] bg-[#111118] px-2 py-2 shadow-xl">
           <p className="text-xs font-semibold text-[#4B5563] uppercase tracking-widest px-4 pt-2 pb-1">Settings</p>
-          <SettingsRow icon={HiOutlineBell} label="Notifications" />
-          <SettingsRow icon={HiOutlineShieldCheck} label="Privacy & Security" />
+          <SettingsRow icon={HiOutlineBell} label="Notifications" onClick={() => navigate("/notifications")} />
+          <SettingsRow
+            icon={HiOutlineShieldCheck}
+            label="Privacy & Security"
+            onClick={() => setToast({ kind: "info", text: "Privacy & Security settings are coming soon" })}
+          />
         </div>
 
       </div>
@@ -361,15 +489,18 @@ export default function ProfilePage() {
         />
       )}
 
-      {/* ── Edit toast ── */}
-      <div
-        className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full border border-white/10 bg-[#1C1C2A] px-4 py-2 shadow-xl transition-all duration-300 ${
-          editToast ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"
-        }`}
-      >
-        <HiCheckCircle className="w-4 h-4 text-green-400" />
-        <span className="text-xs font-medium text-[#E2E8F0]">Edit Profile — coming soon</span>
-      </div>
+      {/* ── Edit profile modal ── */}
+      {showEditModal && (
+        <EditProfileModal
+          initialName={effectiveUser.name}
+          initialBranch={effectiveUser.branch}
+          initialYear={effectiveUser.year}
+          onCancel={() => setShowEditModal(false)}
+          onSave={handleSaveProfile}
+        />
+      )}
+
+      {toast && <Toast kind={toast.kind} text={toast.text} />}
     </div>
   );
 }
