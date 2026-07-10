@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, clearToken, ApiRequestError } from "../lib/api";
+import { api, clearToken, ApiRequestError, type UserProfileDto } from "../lib/api";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -19,15 +19,10 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface UserProfile {
-  id: number;
-  name: string;
-  email: string;
-  branch?: string | null;
-  year?: string | null;
-  avatar?: string | null; // Added avatar field
-  stats?: { tasksCompleted: number; notesCreated: number; aiChats: number };
-}
+// The profile page's local view of the signed-in user is just the backend's
+// profile DTO (see lib/api.ts) — kept as a type alias rather than a
+// hand-copied interface so the two can never drift out of sync again.
+type UserProfile = UserProfileDto;
 
 interface EffectiveUser {
   name: string;
@@ -412,7 +407,7 @@ export default function ProfilePage() {
     branch: profile?.branch ?? DEFAULT_USER.branch,
     year: profile?.year ?? DEFAULT_USER.year,
     avatar: profile?.avatar ?? DEFAULT_USER.avatar,
-    joinedYear: DEFAULT_USER.joinedYear,
+    joinedYear: profile?.createdAt ? new Date(profile.createdAt).getFullYear().toString() : DEFAULT_USER.joinedYear,
     tasksCompleted: tasksCount,
     notesCreated: notesCount,
     aiChats: 0, // AI chats stat is not available from backend
