@@ -1,23 +1,19 @@
-# Enforce Unix-style line endings for Git-specific files to avoid warnings.
-.gitattributes text eol=lf
-.gitignore   text eol=lf
+# Enforce consistent line endings for all contributors.
+# This setting ensures that all text files are normalized to LF in the repository.
+#
+# text=auto: Git will handle the files in whatever way it thinks is best.
+# eol=lf:   Enforces LF (Unix-style) line endings on commit.
 
-# Set default behavior to automatically handle line endings.
-# Git will check out files with line endings native to the OS, but store them as LF in the repo.
-* text=auto
+* text=auto eol=lf
 
-# Explicitly declare text files to be normalized.
-*.js text
-*.jsx text
-*.ts text
-*.tsx text
-*.mjs text
-*.css text
-*.html text
-*.json text
-*.md text
-*.sql text
-
-# Declare files that are binary and should not be modified.
+# For binary files, prevent Git from trying to normalize line endings.
 *.png binary
 *.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
+*.eot binary
+*.ttf binary
+*.woff binary
+*.woff2 binary

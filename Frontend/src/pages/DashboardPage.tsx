@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api, ApiRequestError, type NotificationItem, type UserProfileDto } from "../lib/api";
+
 import { ACTIVITIES } from "../data/activity";
 import { formatRelativeTime } from "../lib/formatRelativeTime";
 import NotificationBell from "./components/NotificationBell";
 import { SkeletonRow } from "./components/Skeleton";
+
 
 
 
@@ -179,7 +181,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [stats] = useState(USER_FALLBACK);
+  const [stats, setStats] = useState(USER_FALLBACK);
   const [notesCount, setNotesCount] = useState<number | null>(null);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(true);
@@ -192,6 +194,11 @@ export default function DashboardPage() {
         const p = await api.auth.profile();
         if (mounted) {
           setProfile(p.user);
+          // Backend profile DTO may not include stats; dashboard uses real notesCount + fallback stats.
+          setStats((prev) => ({
+            ...prev,
+            ...(p.user.stats ?? {}),
+          }));
         }
       } catch {
         // Non-fatal here: if the token is actually invalid, the tasks call
@@ -243,7 +250,7 @@ export default function DashboardPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [navigate]);
 
   const toggleTask = async (id: number) => {
     const current = tasks.find((t) => t.id === id);
@@ -314,14 +321,17 @@ export default function DashboardPage() {
             </div>
 
             {/* Avatar + streak */}
-            <div className="flex flex-col items-center gap-1.5">
+            <Link
+              to="/profile"
+              className="flex flex-col items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#111118] focus-visible:ring-[#6C63FF] rounded-full"
+            >
               <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#6C63FF] to-[#8B5CF6] flex items-center justify-center ring-2 ring-[#6C63FF]/30 ring-offset-2 ring-offset-[#111118]">
                 <span className="text-base font-bold text-white">{getInitials(profile?.name ?? USER_FALLBACK.name)}</span>
               </div>
               <span className="flex items-center gap-1 text-[10px] font-semibold text-orange-400">
                 <HiOutlineFire className="w-3 h-3" /> {USER_FALLBACK.streak}d
               </span>
-            </div>
+            </Link>
           </div>
 
           {/* Mini stats */}
