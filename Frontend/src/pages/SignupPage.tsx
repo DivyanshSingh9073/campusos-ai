@@ -141,21 +141,25 @@ export default function SignupPage() {
   }
 
   const [formError, setFormError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault()
     setFormError(null)
-    if (!validate()) return
+    if (loading || !validate()) return
+    setLoading(true)
 
     try {
       await api.auth.register({
         name: form.name,
         email: form.email,
         password: form.password,
-      })
+      } as any)
       navigate('/', { replace: true })
     } catch (err: any) {
       setFormError(String(err?.message ?? err))
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -363,9 +367,10 @@ export default function SignupPage() {
           <button
             type="submit"
             onClick={handleSubmit}
+            disabled={loading}
             className="w-full rounded-xl bg-[#6C63FF] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#6C63FF]/20 transition-all hover:bg-[#7C6FFF] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C63FF] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111118]"
           >
-            Create account
+            {loading ? 'Creating account…' : 'Create account'}
           </button>
         </div>
 

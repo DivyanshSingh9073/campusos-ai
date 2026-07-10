@@ -68,7 +68,7 @@ export default function LoginPage() {
   useEffect(() => {
     if (getToken()) {
       navigate("/dashboard", { replace: true });
-    }
+    } else clearToken(); // Defensively clear any stale/invalid token
   }, [navigate]);
 
   // ── Validation ──────────────────────────────────────────────────────────────
@@ -233,7 +233,9 @@ export default function LoginPage() {
           </div>
 
           <div className="mb-5 text-right">
-            <a href="#" className="text-xs font-semibold text-[#6C63FF]">Forgot password?</a>
+            <button type="button" className="text-xs font-semibold text-[#6C63FF]">
+              Forgot password?
+            </button>
           </div>
 
           {/* Backend / network error banner */}
