@@ -189,68 +189,6 @@ export default function DashboardPage() {
     productivityScore: 0,
   });
 
-  type StudySession = {
-    id: number
-    subject: string
-    topic: string
-    studyDate: string
-    completed: boolean
-    createdAt: string
-  }
-
-  const [studySessions, setStudySessions] = useState<StudySession[]>([])
-  const [studyLoading, setStudyLoading] = useState(false)
-  const [studyError, setStudyError] = useState<string | null>(null)
-
-  const toISODateLocal = (d: Date) => {
-    const pad = (n: number) => String(n).padStart(2, '0')
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-  }
-
-  useEffect(() => { 
-    let mounted = true
-    ;(async () => {
-      setStudyLoading(true)
-      setStudyError(null)
-      try {
-        const res = await api.studyPlanner.list()
-        const mapped: StudySession[] = (res.sessions ?? []).map((s: any) => ({
-          id: Number(s.id),
-          subject: String(s.subject ?? ''),
-          topic: String(s.topic ?? ''),
-          studyDate: String(s.studyDate ?? ''),
-          completed: Boolean(s.completed),
-          createdAt: String(s.createdAt ?? ''),
-        }))
-        if (mounted) setStudySessions(mapped)
-      } catch (e: any) {
-        const msg = String(e?.message ?? e)
-        if (!mounted) return
-        setStudyError(isAuthError(msg) ? null : msg)
-        if (isAuthError(msg)) {
-          clearToken()
-          navigate('/', { replace: true })
-        }
-      } finally {
-        if (mounted) setStudyLoading(false)
-      }
-    })()
-    return () => {
-      mounted = false
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigate])
-
-  const todayISO = useMemo(() => toISODateLocal(new Date()), [])
-  const todayStudySessions = useMemo(() => studySessions.filter((s) => s.studyDate === todayISO), [studySessions, todayISO])
-  void todayStudySessions
-  const upcomingStudySessions = useMemo(
-    () => studySessions.filter((s) => s.studyDate > todayISO).sort((a, b) => a.studyDate.localeCompare(b.studyDate) || (b.createdAt ?? '').localeCompare(a.createdAt ?? '')),
-    [studySessions, todayISO]
-  )
-  const upcomingStudyCount = useMemo(() => upcomingStudySessions.filter((s) => !s.completed).length, [upcomingStudySessions])
-  const nextStudyDate = useMemo(() => upcomingStudySessions.find((s) => !s.completed)?.studyDate ?? null, [upcomingStudySessions])
-
 
   useEffect(() => {
     let mounted = true;
@@ -260,10 +198,9 @@ export default function DashboardPage() {
         setLoading(true);
         setError(null);
 
-        const [profileRes, tasksRes, analyticsRes] = await Promise.all([
+        const [profileRes, tasksRes] = await Promise.all([
           api.auth.profile(),
           api.tasks.list(),
-          api.get('/analytics'),
         ]);
 
         if (mounted) {
@@ -276,7 +213,15 @@ export default function DashboardPage() {
             createdAt: t.createdAt ?? t.created_at ?? null,
           }));
           setTasks(mappedTasks);
-          setStats(analyticsRes.data);
+          // Since /analytics is not implemented, we derive stats from the tasks list.
+          const pending = mappedTasks.filter(t => !t.done).length;
+          const completed = mappedTasks.filter(t => t.done).length;
+          setStats(prev => ({
+            ...prev,
+            tasksPending: pending,
+            tasksCompleted: completed,
+            // notesCreated and other stats would come from other API calls if needed.
+          }));
         }
       } catch (e: any) {
         const msg = String(e?.message ?? e);
@@ -471,48 +416,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-
-        <div>
-          <SectionHeader title="Today's Study Sessions" action="" />
-          <div className="rounded-2xl border border-white/[0.07] bg-[#111118] px-4 shadow-xl">
-            {studyLoading ? (
-              <div className="px-1 py-5">
-                <p className="text-center text-xs text-[#64748B]">Loading…</p>
-              </div>
-            ) : todayStudySessions.length === 0 ? (
-              <div className="px-1 py-5">
-                <p className="text-center text-xs text-[#64748B]">No study sessions today</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-white/[0.05]">
-                {todayStudySessions.slice(0, 4).map((s) => (
-                  <div key={s.id} className="px-0 py-3 flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className={`text-sm font-medium truncate ${s.completed ? 'line-through text-[#3B4558]' : 'text-[#E2E8F0]'}`}>
-                        {s.subject}
-                      </p>
-                      <p className="text-xs text-[#64748B] mt-1 truncate">{s.topic}</p>
-                    </div>
-                    <span className="text-[10px] text-[#64748B] whitespace-nowrap">{s.completed ? 'Done' : 'Planned'}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <div className="rounded-xl bg-white/[0.04] border border-white/[0.05] py-2 text-center">
-              <p className="text-base font-bold text-white">{upcomingStudyCount}</p>
-              <p className="text-[10px] text-[#4B5563] mt-0.5">Upcoming</p>
-            </div>
-            <div className="rounded-xl bg-white/[0.04] border border-white/[0.05] py-2 text-center">
-              <p className="text-base font-bold text-white">{nextStudyDate ? 'Next' : '—'}</p>
-              <p className="text-[10px] text-[#4B5563] mt-0.5">
-                {nextStudyDate ? nextStudyDate : 'All done'}
-              </p>
-            </div>
-          </div>
-        </div>
 
         <div>
           <SectionHeader title="Upcoming Tasks" action="Add task" />

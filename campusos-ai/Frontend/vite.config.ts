@@ -10,7 +10,7 @@ export default defineConfig({
     proxy: {
       // Proxy every /api/* request to the backend — avoids CORS entirely
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'https://campusos-ai-1-fciu.onrender.com',
         changeOrigin: true,
       },
     },

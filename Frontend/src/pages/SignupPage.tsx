@@ -151,10 +151,12 @@ export default function SignupPage() {
 
     try {
       await api.auth.register({
-        name: form.name,
-        email: form.email,
+        name: form.name.trim(),
+        email: form.email.trim(),
         password: form.password,
-      } as any)
+        branch: form.branch,
+        year: form.year,
+      })
       navigate('/', { replace: true })
     } catch (err: any) {
       setFormError(String(err?.message ?? err))

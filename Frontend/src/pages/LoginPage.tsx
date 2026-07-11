@@ -68,7 +68,7 @@ export default function LoginPage() {
   useEffect(() => {
     if (getToken()) {
       navigate("/dashboard", { replace: true });
-    } else clearToken(); // Defensively clear any stale/invalid token
+    }
   }, [navigate]);
 
   // ── Validation ──────────────────────────────────────────────────────────────
@@ -230,12 +230,6 @@ export default function LoginPage() {
             {errors.password && (
               <p className="mt-2 text-xs text-red-400 font-medium">{errors.password}</p>
             )}
-          </div>
-
-          <div className="mb-5 text-right">
-            <button type="button" className="text-xs font-semibold text-[#6C63FF]">
-              Forgot password?
-            </button>
           </div>
 
           {/* Backend / network error banner */}
