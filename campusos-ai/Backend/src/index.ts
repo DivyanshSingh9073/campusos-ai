@@ -9,6 +9,7 @@ import { tasksRouter } from './routes/tasks.routes.js'
 import { assistantRouter } from './routes/assistant.routes.js'
 import { aiRouter } from './routes/ai.routes.js'
 import { studyPlannerRouter } from './routes/studyPlanner.routes.js'
+import { errorHandler } from './middleware/errorHandler.js'
 
 
 const app = express()
@@ -37,13 +38,9 @@ app.get('/', (_req: express.Request, res: express.Response) => {
   })
 })
 
+// Custom error handler (must be after routes, before generic handler)
+app.use(errorHandler)
 
-// Basic 404
-app.use((req: express.Request, res: express.Response) => {
-  res.status(404).json({ error: `Route not found: ${req.method} ${req.path}` })
-})
-
-// Error handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('Unhandled backend error:', err)
 
@@ -61,9 +58,12 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   })
 })
 
+// Basic 404 handler (must be the last `app.use`)
+app.use((req: express.Request, res: express.Response) => {
+  res.status(404).json({ error: `Route not found: ${req.method} ${req.path}` })
+})
+
 
 app.listen(config.PORT, () => {
   console.log(`CampusOS AI Backend listening on http://localhost:${config.PORT}`)
 })
-
-
