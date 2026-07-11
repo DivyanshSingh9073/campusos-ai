@@ -68,7 +68,7 @@ export default function LoginPage() {
   useEffect(() => {
     if (getToken()) {
       navigate("/dashboard", { replace: true });
-    } else clearToken(); // Defensively clear any stale/invalid token
+    }
   }, [navigate]);
 
   // ── Validation ──────────────────────────────────────────────────────────────
