@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api, ApiRequestError, clearToken, type NotificationItem } from "../lib/api";
+import { api, ApiRequestError, type NotificationItem, type UserProfileDto } from "../lib/api";
 
 import { ACTIVITIES } from "../data/activity";
 import { formatRelativeTime } from "../lib/formatRelativeTime";
@@ -26,14 +26,10 @@ import {
   HiOutlineBell,
 } from "react-icons/hi";
 
-interface UserProfile {
-  id: number;
-  name: string;
-  email: string;
-  branch?: string;
-  year?: string;
-  stats?: { tasksCompleted: number; notesCreated: number; aiChats: number };
-}
+// The dashboard's local view of the signed-in user is just the backend's
+// profile DTO (see lib/api.ts) — kept as a type alias rather than a
+// hand-copied interface so the two can never drift out of sync again.
+type UserProfile = UserProfileDto;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -184,11 +180,8 @@ export default function DashboardPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Keep local type permissive because backend profile DTO doesn't always include
-  // branch/year/stats consistently.
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState(USER_FALLBACK);
-
   const [notesCount, setNotesCount] = useState<number | null>(null);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(true);
@@ -200,11 +193,11 @@ export default function DashboardPage() {
       try {
         const p = await api.auth.profile();
         if (mounted) {
-          setProfile(p.user as any);
+          setProfile(p.user);
           // Backend profile DTO may not include stats; dashboard uses real notesCount + fallback stats.
           setStats((prev) => ({
             ...prev,
-            ...((p.user as any)?.stats ?? {}),
+            ...(p.user.stats ?? {}),
           }));
         }
       } catch {

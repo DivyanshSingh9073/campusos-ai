@@ -45,9 +45,22 @@ app.use((req: express.Request, res: express.Response) => {
 
 // Error handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error(err)
-  res.status(500).json({ error: 'Internal server error' })
+  console.error('Unhandled backend error:', err)
+
+  if (res.headersSent) return
+
+  const message =
+    err?.message ||
+    (typeof err === 'string' ? err : null) ||
+    'Internal server error'
+
+  res.status(500).json({
+    error: 'Internal server error',
+    message,
+    stack: process.env.NODE_ENV === 'development' ? err?.stack : undefined,
+  })
 })
+
 
 app.listen(config.PORT, () => {
   console.log(`CampusOS AI Backend listening on http://localhost:${config.PORT}`)

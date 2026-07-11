@@ -128,7 +128,13 @@ export const api = {
       )
     },
 
-    register(body: { name: string; email: string; password: string }) {
+    register(body: {
+      name: string
+      email: string
+      password: string
+      branch?: string
+      year?: string
+    }) {
       return request<{ id: number }>('/auth/register', { method: 'POST', body, auth: false })
     },
 
@@ -145,6 +151,21 @@ export const api = {
         body,
       })
     },
+
+    /*
+    // TODO: Implement forgot password flow
+    forgotPassword(body: { email: string }) {
+      return request<void>('/auth/forgot-password', {
+        method: 'POST',
+        body,
+        auth: false,
+      });
+    },
+
+    resetPassword(body: { token: string; password: string }) {
+      return request<void>('/auth/reset-password', { method: 'POST', body, auth: false });
+    },
+    */
   },
 
   tasks: {
@@ -245,5 +266,3 @@ export const api = {
 export function useApi() {
   return useMemo(() => api, [])
 }
-
-

@@ -232,12 +232,6 @@ export default function LoginPage() {
             )}
           </div>
 
-          <div className="mb-5 text-right">
-            <button type="button" className="text-xs font-semibold text-[#6C63FF]">
-              Forgot password?
-            </button>
-          </div>
-
           {/* Backend / network error banner */}
           {formError && (
             <div className="mb-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3">

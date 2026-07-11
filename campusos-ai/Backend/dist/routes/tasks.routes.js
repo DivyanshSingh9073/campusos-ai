@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { query } from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
-import { listTasksForUser } from '../services/tasksService.js';
+import { getTasksForUser } from '../services/tasksService.js';
 export const tasksRouter = Router();
 tasksRouter.use(requireAuth);
 tasksRouter.get('/', async (req, res) => {
     const userId = req.user.id;
-    const rows = await listTasksForUser(userId);
+    const rows = await getTasksForUser(userId);
     return res.json({ tasks: rows });
 });
 tasksRouter.post('/', async (req, res) => {

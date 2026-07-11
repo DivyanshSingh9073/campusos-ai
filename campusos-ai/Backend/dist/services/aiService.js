@@ -1,5 +1,6 @@
 // Use fetch-based call so we don't depend on the OpenAI SDK types at compile time.
 // This also matches the rest of the backend repo style (fetch-based provider).
+import OpenAI from 'openai';
 // Provider: OpenAI (or OpenAI-compatible endpoint)
 // Env vars:
 // - OPENAI_API_KEY (required)

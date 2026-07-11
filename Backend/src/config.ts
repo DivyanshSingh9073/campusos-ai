@@ -29,9 +29,12 @@ if (config.NODE_ENV === 'production') {
       'JWT_SECRET is still set to the development default. Set a long, random JWT_SECRET before running in production.'
     )
   }
-  if (!config.DATABASE_URL) {
-    throw new Error('DATABASE_URL is required in production.')
-  }
 }
+
+// Always validate DATABASE_URL (even in dev) so failures become clear.
+if (!config.DATABASE_URL) {
+  throw new Error('DATABASE_URL is not set. Please add it to Backend/.env')
+}
+
 
 
