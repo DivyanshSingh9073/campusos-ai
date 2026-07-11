@@ -88,4 +88,3 @@ Instead:
 | due_date | DATE |
 | completed | BOOLEAN |
 | user_id | INTEGER |
-

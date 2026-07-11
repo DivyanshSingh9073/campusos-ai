@@ -131,13 +131,13 @@ async function request<T>(
 export const api = {
   auth: {
     login(body: { email: string; password: string }) {
-      return request<{ token: string; user: { id: number; name: string; email: string } }>(
+      return request<{ token: string; user: UserProfileDto }>(
         '/auth/login',
         { method: 'POST', body, auth: false }
       )
     },
 
-    register(body: { name: string; email: string; password: string }) {
+    register(body: { name: string; email: string; password: string; branch: string; year: string }) {
       return request<{ id: number }>('/auth/register', { method: 'POST', body, auth: false })
     },
 

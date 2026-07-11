@@ -5,8 +5,8 @@ function isPgError(err: any): boolean {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function errorHandler(err: any, _req: Request, res: Response, _next: NextFunction) {
-  console.error(err)
+export function errorHandler(err: any, _req: Request, res: Response, next: NextFunction) {
+  // Don't log here; let the final handler do it so we don't get double logs.
   if (res.headersSent) return
 
   const msg = typeof err?.message === 'string' ? err.message : ''
@@ -21,14 +21,19 @@ export function errorHandler(err: any, _req: Request, res: Response, _next: Next
   }
 
   if (isPgError(err)) {
-    // Examples: 42P01 table missing, 42703 column missing, etc.
-    const details = err?.detail ?? err?.hint ?? err?.message
-    return res.status(500).json({
-      error: 'Internal server error',
-      details: typeof details === 'string' ? details : 'Database error'
-    })
+    // In development, we want the full error to be passed to the final
+    // handler so we can see the stack trace and details on the client.
+    // In production, we return a generic error for security.
+    if (process.env.NODE_ENV === 'production') {
+      // Examples: 42P01 table missing, 42703 column missing, etc.
+      const details = err?.detail ?? err?.hint ?? err?.message
+      return res.status(500).json({
+        error: 'Internal server error',
+        details: typeof details === 'string' ? details : 'Database error'
+      })
+    }
   }
 
-  return res.status(500).json({ error: 'Internal server error' })
+  // If we can't handle it here, pass it to the next error handler
+  next(err)
 }
-
