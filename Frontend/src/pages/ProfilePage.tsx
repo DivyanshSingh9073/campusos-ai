@@ -406,8 +406,8 @@ export default function ProfilePage() {
     email: profile?.email ?? DEFAULT_USER.email,
     branch: profile?.branch ?? DEFAULT_USER.branch,
     year: profile?.year ?? DEFAULT_USER.year,
-    avatar: profile?.avatar ?? DEFAULT_USER.avatar,
-    joinedYear: profile?.createdAt ? new Date(profile.createdAt).getFullYear().toString() : DEFAULT_USER.joinedYear,
+    avatar: DEFAULT_USER.avatar,
+    joinedYear: DEFAULT_USER.joinedYear,
     tasksCompleted: tasksCount,
     notesCreated: notesCount,
     aiChats: 0, // AI chats stat is not available from backend
